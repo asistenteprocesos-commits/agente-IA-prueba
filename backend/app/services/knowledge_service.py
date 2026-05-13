@@ -295,7 +295,9 @@ class KnowledgeService:
         canvas_path = vault_dir / "BPM_Knowledge_Graph.canvas"
         manifest = self._load_training_manifest(training_dir)
         books = manifest.get("books", [])
-        dataset_path = training_dir / "datasets" / "bpm_instruction_dataset.jsonl"
+        dataset_dir = training_dir / "datasets"
+        dataset_path = dataset_dir / "bpm_instruction_dataset.jsonl"
+        extended_dataset_path = dataset_dir / "bpm_extended_examples.jsonl"
         insight_count = manifest.get("insights")
 
         artifacts = [
@@ -303,7 +305,8 @@ class KnowledgeService:
             self._artifact_response("Playbook operativo", "playbook", training_dir / "playbook-operativo-bpm.md"),
             self._artifact_response("Rubrica de calidad", "rubric", training_dir / "rubrica-calidad-bpm.md"),
             self._artifact_response("Glosario operativo", "glossary", training_dir / "glosario-operativo.md"),
-            self._artifact_response("Dataset JSONL", "dataset", dataset_path),
+            self._artifact_response("Dataset JSONL principal", "dataset", dataset_path),
+            self._artifact_response("Dataset JSONL extendido", "dataset", extended_dataset_path),
             self._artifact_response("Manifest de destilacion", "manifest", training_dir / "knowledge-distillation-manifest.json"),
             self._artifact_response("Vault Obsidian", "obsidian_vault", vault_dir),
             self._artifact_response("Canvas visual Obsidian", "obsidian_canvas", canvas_path),
@@ -320,7 +323,7 @@ class KnowledgeService:
             ),
             insights=int(insight_count) if insight_count is not None else self._count_insights(),
             methodology_phases=int(manifest.get("methodology_phases", 8)),
-            dataset_examples=self._count_dataset_examples(dataset_path),
+            dataset_examples=self._count_dataset_examples_in_dir(dataset_dir),
             graph_is_visual=canvas_path.exists(),
             obsidian_vault_path=str(vault_dir),
             obsidian_canvas_path=str(canvas_path),
@@ -550,6 +553,15 @@ class KnowledgeService:
             return 0
         with dataset_path.open("r", encoding="utf-8") as dataset_file:
             return sum(1 for line in dataset_file if line.strip())
+
+    @staticmethod
+    def _count_dataset_examples_in_dir(dataset_dir: Path) -> int:
+        if not dataset_dir.exists():
+            return 0
+        return sum(
+            KnowledgeService._count_dataset_examples(dataset_path)
+            for dataset_path in dataset_dir.glob("*.jsonl")
+        )
 
     @staticmethod
     def _artifact_response(name: str, kind: str, path: Path) -> AgentTrainingArtifactResponse:

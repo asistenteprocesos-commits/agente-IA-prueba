@@ -1,36 +1,55 @@
 import {
   Activity,
+  CheckCircle2,
   ClipboardList,
   Database,
   FileText,
   GitBranch,
+  Play,
   Plus,
+  RotateCcw,
   ShieldCheck,
+  StepForward,
   Upload,
   Users,
+  Workflow,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 import {
   addArtifactEvidence,
+  addOrchestrationContext,
   analyzeKnowledgeLibrary,
+  advanceOrchestration,
   commentArtifactVersion,
   compareArtifactVersions,
+  createProcessAnalysisReport,
   createAsIsElement,
   createArtifactVersion,
   createProcessInterview,
   createProcessArtifact,
   createProcessCase,
+  createProcessRedesignReport,
+  createProcessSimulationReport,
   createProcessStakeholder,
+  createFinalDeliverable,
+  decideOrchestrationCheckpoint,
   decideArtifactVersion,
   extractAsIsElements,
+  generateAsIsBpmn,
   getAgentTrainingProfile,
+  getDiscoveryAssessment,
+  getCaseOrchestration,
   getInterviewGuide,
   getArtifactVersionHistory,
   getArtifactQuality,
   getHealth,
   getCaseMethodology,
+  getFinalDeliverable,
+  getProcessAnalysis,
+  getProcessRedesign,
   getProcessRepository,
+  getProcessSimulation,
   getLocalLLMProfile,
   listArtifactEvidence,
   listKnowledgeChunks,
@@ -41,12 +60,18 @@ import {
   listProcessArtifacts,
   listProcessCases,
   listProcessStakeholders,
+  previewAsIsBpmn,
+  rollbackOrchestration,
+  startCaseOrchestration,
   uploadKnowledgeDocumentsBulk,
   type AgentTrainingProfile,
   type ArtifactEvidence,
   type ArtifactQuality,
   type ArtifactVersionHistory,
+  type BpmnDraft,
   type CaseMethodology,
+  type DiscoveryAssessment,
+  type FinalDeliverable,
   type HealthResponse,
   type InterviewGuide,
   type KnowledgeChunk,
@@ -54,11 +79,15 @@ import {
   type KnowledgeInsight,
   type KnowledgeLearningRun,
   type LocalLLMProfile,
+  type OrchestrationState,
   type ProcessAsIsElement,
+  type ProcessAnalysis,
   type ProcessArtifact,
   type ProcessCase,
   type ProcessInterview,
   type ProcessRepository,
+  type ProcessRedesign,
+  type ProcessSimulation,
   type ProcessStakeholder,
   type VersionDiff,
 } from "./api";
@@ -98,11 +127,18 @@ export function App() {
   const [caseMethodology, setCaseMethodology] = useState<CaseMethodology | null>(null);
   const [agentTrainingProfile, setAgentTrainingProfile] = useState<AgentTrainingProfile | null>(null);
   const [localLLMProfile, setLocalLLMProfile] = useState<LocalLLMProfile | null>(null);
+  const [orchestration, setOrchestration] = useState<OrchestrationState | null>(null);
   const [learningRun, setLearningRun] = useState<KnowledgeLearningRun | null>(null);
   const [stakeholders, setStakeholders] = useState<ProcessStakeholder[]>([]);
   const [interviews, setInterviews] = useState<ProcessInterview[]>([]);
   const [interviewGuide, setInterviewGuide] = useState<InterviewGuide | null>(null);
+  const [discoveryAssessment, setDiscoveryAssessment] = useState<DiscoveryAssessment | null>(null);
   const [asIsElements, setAsIsElements] = useState<ProcessAsIsElement[]>([]);
+  const [bpmnDraft, setBpmnDraft] = useState<BpmnDraft | null>(null);
+  const [processAnalysis, setProcessAnalysis] = useState<ProcessAnalysis | null>(null);
+  const [processRedesign, setProcessRedesign] = useState<ProcessRedesign | null>(null);
+  const [processSimulation, setProcessSimulation] = useState<ProcessSimulation | null>(null);
+  const [finalDeliverable, setFinalDeliverable] = useState<FinalDeliverable | null>(null);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [selectedKnowledgeDocumentId, setSelectedKnowledgeDocumentId] = useState<string | null>(null);
@@ -116,6 +152,18 @@ export function App() {
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [knowledgeUploadMessage, setKnowledgeUploadMessage] = useState<string | null>(null);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [bpmnError, setBpmnError] = useState<string | null>(null);
+  const [bpmnMessage, setBpmnMessage] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
+  const [redesignError, setRedesignError] = useState<string | null>(null);
+  const [redesignMessage, setRedesignMessage] = useState<string | null>(null);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
+  const [simulationMessage, setSimulationMessage] = useState<string | null>(null);
+  const [deliverableError, setDeliverableError] = useState<string | null>(null);
+  const [deliverableMessage, setDeliverableMessage] = useState<string | null>(null);
+  const [orchestrationError, setOrchestrationError] = useState<string | null>(null);
+  const [orchestrationMessage, setOrchestrationMessage] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [traceError, setTraceError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -126,6 +174,12 @@ export function App() {
   const [isCreatingInterview, setIsCreatingInterview] = useState(false);
   const [isCreatingAsIsElement, setIsCreatingAsIsElement] = useState(false);
   const [extractingInterviewId, setExtractingInterviewId] = useState<string | null>(null);
+  const [isGeneratingBpmn, setIsGeneratingBpmn] = useState(false);
+  const [isAnalyzingProcess, setIsAnalyzingProcess] = useState(false);
+  const [isRedesigningProcess, setIsRedesigningProcess] = useState(false);
+  const [isSimulatingProcess, setIsSimulatingProcess] = useState(false);
+  const [isCreatingDeliverable, setIsCreatingDeliverable] = useState(false);
+  const [isOrchestrating, setIsOrchestrating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isTracing, setIsTracing] = useState(false);
 
@@ -236,10 +290,43 @@ export function App() {
 
   useEffect(() => {
     if (!selectedCaseId) {
+      setOrchestration(null);
+      return;
+    }
+
+    let active = true;
+
+    getCaseOrchestration(selectedCaseId)
+      .then((data) => {
+        if (active) {
+          setOrchestration(data);
+          setOrchestrationError(null);
+          setOrchestrationMessage(data.next_action_es);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setOrchestrationError(reason instanceof Error ? reason.message : "No se pudo cargar la orquestacion");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCaseId]);
+
+  useEffect(() => {
+    if (!selectedCaseId) {
       setStakeholders([]);
       setInterviews([]);
       setInterviewGuide(null);
+      setDiscoveryAssessment(null);
       setAsIsElements([]);
+      setBpmnDraft(null);
+      setProcessAnalysis(null);
+      setProcessRedesign(null);
+      setProcessSimulation(null);
+      setFinalDeliverable(null);
       return;
     }
 
@@ -249,15 +336,32 @@ export function App() {
       listProcessStakeholders(selectedCaseId),
       listProcessInterviews(selectedCaseId),
       getInterviewGuide(selectedCaseId),
+      getDiscoveryAssessment(selectedCaseId),
       listAsIsElements(selectedCaseId),
+      previewAsIsBpmn(selectedCaseId),
+      getProcessAnalysis(selectedCaseId),
+      getProcessRedesign(selectedCaseId),
+      getProcessSimulation(selectedCaseId),
+      getFinalDeliverable(selectedCaseId),
     ])
-      .then(([stakeholderData, interviewData, guideData, elementData]) => {
+      .then(([stakeholderData, interviewData, guideData, assessmentData, elementData, bpmnData, analysisData, redesignData, simulationData, deliverableData]) => {
         if (active) {
           setStakeholders(stakeholderData);
           setInterviews(interviewData);
           setInterviewGuide(guideData);
+          setDiscoveryAssessment(assessmentData);
           setAsIsElements(elementData);
+          setBpmnDraft(bpmnData);
+          setProcessAnalysis(analysisData);
+          setProcessRedesign(redesignData);
+          setProcessSimulation(simulationData);
+          setFinalDeliverable(deliverableData);
           setDiscoveryError(null);
+          setBpmnError(null);
+          setAnalysisError(null);
+          setRedesignError(null);
+          setSimulationError(null);
+          setDeliverableError(null);
         }
       })
       .catch((reason: unknown) => {
@@ -449,7 +553,9 @@ export function App() {
 
     try {
       const created = await createProcessStakeholder(selectedCaseId, payload);
+      const assessment = await getDiscoveryAssessment(selectedCaseId);
       setStakeholders((current) => [created, ...current]);
+      setDiscoveryAssessment(assessment);
       setCases((current) =>
         current.map((processCase) =>
           processCase.id === selectedCaseId ? { ...processCase, status: "discovery" } : processCase,
@@ -491,7 +597,9 @@ export function App() {
 
     try {
       const created = await createProcessInterview(selectedCaseId, payload);
+      const assessment = await getDiscoveryAssessment(selectedCaseId);
       setInterviews((current) => [created, ...current]);
+      setDiscoveryAssessment(assessment);
       setCases((current) =>
         current.map((processCase) =>
           processCase.id === selectedCaseId ? { ...processCase, status: "discovery" } : processCase,
@@ -530,7 +638,19 @@ export function App() {
 
     try {
       const created = await createAsIsElement(selectedCaseId, payload);
+      const assessment = await getDiscoveryAssessment(selectedCaseId);
+      const bpmn = await previewAsIsBpmn(selectedCaseId);
+      const analysis = await getProcessAnalysis(selectedCaseId);
+      const redesign = await getProcessRedesign(selectedCaseId);
+      const simulation = await getProcessSimulation(selectedCaseId);
+      const deliverable = await getFinalDeliverable(selectedCaseId);
       setAsIsElements((current) => [created, ...current]);
+      setDiscoveryAssessment(assessment);
+      setBpmnDraft(bpmn);
+      setProcessAnalysis(analysis);
+      setProcessRedesign(redesign);
+      setProcessSimulation(simulation);
+      setFinalDeliverable(deliverable);
       setCases((current) =>
         current.map((processCase) =>
           processCase.id === selectedCaseId ? { ...processCase, status: "as_is_drafting" } : processCase,
@@ -554,7 +674,19 @@ export function App() {
 
     try {
       const extracted = await extractAsIsElements(selectedCaseId, interviewId);
+      const assessment = await getDiscoveryAssessment(selectedCaseId);
+      const bpmn = await previewAsIsBpmn(selectedCaseId);
+      const analysis = await getProcessAnalysis(selectedCaseId);
+      const redesign = await getProcessRedesign(selectedCaseId);
+      const simulation = await getProcessSimulation(selectedCaseId);
+      const deliverable = await getFinalDeliverable(selectedCaseId);
       setAsIsElements((current) => [...extracted, ...current]);
+      setDiscoveryAssessment(assessment);
+      setBpmnDraft(bpmn);
+      setProcessAnalysis(analysis);
+      setProcessRedesign(redesign);
+      setProcessSimulation(simulation);
+      setFinalDeliverable(deliverable);
       setCases((current) =>
         current.map((processCase) =>
           processCase.id === selectedCaseId ? { ...processCase, status: "as_is_drafting" } : processCase,
@@ -760,6 +892,223 @@ export function App() {
     }
   }
 
+  async function runOrchestrationCommand(command: () => Promise<OrchestrationState>) {
+    if (!selectedCaseId) {
+      setOrchestrationError("Selecciona un caso antes de operar el orquestador");
+      return;
+    }
+
+    setIsOrchestrating(true);
+    setOrchestrationError(null);
+    setOrchestrationMessage(null);
+
+    try {
+      const state = await command();
+      const refreshedCases = await listProcessCases();
+      setOrchestration(state);
+      setCases(refreshedCases);
+      setOrchestrationMessage(state.next_action_es);
+    } catch (reason) {
+      setOrchestrationError(reason instanceof Error ? reason.message : "No se pudo operar la orquestacion");
+    } finally {
+      setIsOrchestrating(false);
+    }
+  }
+
+  async function handleStartOrchestration() {
+    if (!selectedCaseId) {
+      return;
+    }
+
+    await runOrchestrationCommand(() => startCaseOrchestration(selectedCaseId));
+  }
+
+  async function handleAdvanceOrchestration() {
+    if (!selectedCaseId) {
+      return;
+    }
+
+    await runOrchestrationCommand(() => advanceOrchestration(selectedCaseId));
+  }
+
+  async function handleRollbackOrchestration() {
+    if (!selectedCaseId) {
+      return;
+    }
+
+    await runOrchestrationCommand(() => rollbackOrchestration(selectedCaseId));
+  }
+
+  async function handleCheckpointDecision(action: "approve" | "reject") {
+    if (!selectedCaseId) {
+      return;
+    }
+
+    const reviewerInput = document.getElementById("checkpoint-reviewer") as HTMLInputElement | null;
+    const commentInput = document.getElementById("checkpoint-comment") as HTMLInputElement | null;
+    const reviewer = reviewerInput?.value.trim() || "Supervisor BPM";
+    const comment = commentInput?.value.trim() || undefined;
+
+    await runOrchestrationCommand(() =>
+      decideOrchestrationCheckpoint(selectedCaseId, {
+        action,
+        reviewer,
+        comment,
+      }),
+    );
+  }
+
+  async function handleAddOrchestrationContext(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedCaseId) {
+      setOrchestrationError("Selecciona un caso antes de agregar contexto");
+      return;
+    }
+
+    const form = new FormData(event.currentTarget);
+    const message = String(form.get("message_es") ?? "").trim();
+    const actor = String(form.get("actor") ?? "Especialista BPM").trim() || "Especialista BPM";
+
+    if (!message) {
+      setOrchestrationError("Registra un contexto antes de guardar");
+      return;
+    }
+
+    await runOrchestrationCommand(() =>
+      addOrchestrationContext(selectedCaseId, {
+        actor,
+        message_es: message,
+      }),
+    );
+    event.currentTarget.reset();
+  }
+
+  async function handleGenerateBpmn(persist: boolean) {
+    if (!selectedCaseId) {
+      setBpmnError("Selecciona un caso antes de generar BPMN");
+      return;
+    }
+
+    setIsGeneratingBpmn(true);
+    setBpmnError(null);
+    setBpmnMessage(null);
+
+    try {
+      const draft = persist
+        ? await generateAsIsBpmn(selectedCaseId, {
+            title: "BPMN as-is generado por agente",
+            author: "Agente Modelador BPMN",
+            persist: true,
+          })
+        : await previewAsIsBpmn(selectedCaseId);
+      const artifactData = await listProcessArtifacts(selectedCaseId);
+      setBpmnDraft(draft);
+      setArtifacts(artifactData);
+      setBpmnMessage(
+        persist
+          ? "BPMN generado y guardado como artefacto versionado."
+          : "Vista previa BPMN actualizada desde el inventario as-is.",
+      );
+    } catch (reason) {
+      setBpmnError(reason instanceof Error ? reason.message : "No se pudo generar BPMN");
+    } finally {
+      setIsGeneratingBpmn(false);
+    }
+  }
+
+  async function handleCreateAnalysisReport() {
+    if (!selectedCaseId) {
+      setAnalysisError("Selecciona un caso antes de generar analisis");
+      return;
+    }
+
+    setIsAnalyzingProcess(true);
+    setAnalysisError(null);
+    setAnalysisMessage(null);
+
+    try {
+      const analysis = await createProcessAnalysisReport(selectedCaseId);
+      const artifactData = await listProcessArtifacts(selectedCaseId);
+      setProcessAnalysis(analysis);
+      setArtifacts(artifactData);
+      setAnalysisMessage("Analisis generado y guardado como reporte versionado.");
+    } catch (reason) {
+      setAnalysisError(reason instanceof Error ? reason.message : "No se pudo generar el analisis");
+    } finally {
+      setIsAnalyzingProcess(false);
+    }
+  }
+
+  async function handleCreateRedesignReport() {
+    if (!selectedCaseId) {
+      setRedesignError("Selecciona un caso antes de generar to-be");
+      return;
+    }
+
+    setIsRedesigningProcess(true);
+    setRedesignError(null);
+    setRedesignMessage(null);
+
+    try {
+      const redesign = await createProcessRedesignReport(selectedCaseId);
+      const artifactData = await listProcessArtifacts(selectedCaseId);
+      setProcessRedesign(redesign);
+      setArtifacts(artifactData);
+      setRedesignMessage("Propuesta to-be guardada como artefacto versionado.");
+    } catch (reason) {
+      setRedesignError(reason instanceof Error ? reason.message : "No se pudo generar la propuesta to-be");
+    } finally {
+      setIsRedesigningProcess(false);
+    }
+  }
+
+  async function handleCreateSimulationReport() {
+    if (!selectedCaseId) {
+      setSimulationError("Selecciona un caso antes de simular");
+      return;
+    }
+
+    setIsSimulatingProcess(true);
+    setSimulationError(null);
+    setSimulationMessage(null);
+
+    try {
+      const simulation = await createProcessSimulationReport(selectedCaseId);
+      const artifactData = await listProcessArtifacts(selectedCaseId);
+      setProcessSimulation(simulation);
+      setArtifacts(artifactData);
+      setSimulationMessage("Simulacion guardada como artefacto versionado.");
+    } catch (reason) {
+      setSimulationError(reason instanceof Error ? reason.message : "No se pudo generar la simulacion");
+    } finally {
+      setIsSimulatingProcess(false);
+    }
+  }
+
+  async function handleCreateFinalDeliverable() {
+    if (!selectedCaseId) {
+      setDeliverableError("Selecciona un caso antes de generar informe final");
+      return;
+    }
+
+    setIsCreatingDeliverable(true);
+    setDeliverableError(null);
+    setDeliverableMessage(null);
+
+    try {
+      const deliverable = await createFinalDeliverable(selectedCaseId);
+      const artifactData = await listProcessArtifacts(selectedCaseId);
+      setFinalDeliverable(deliverable);
+      setArtifacts(artifactData);
+      setDeliverableMessage("Informe final guardado como artefacto versionado.");
+    } catch (reason) {
+      setDeliverableError(reason instanceof Error ? reason.message : "No se pudo generar el informe final");
+    } finally {
+      setIsCreatingDeliverable(false);
+    }
+  }
+
   const selectedCase = cases.find((processCase) => processCase.id === selectedCaseId) ?? null;
   const selectedArtifact = artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? null;
   const selectedKnowledgeDocument =
@@ -780,11 +1129,29 @@ export function App() {
           <a className="nav-item" href="#casos">
             Casos
           </a>
+          <a className="nav-item" href="#orquestacion">
+            Orquestacion
+          </a>
           <a className="nav-item" href="#levantamiento">
             Levantamiento
           </a>
           <a className="nav-item" href="#asis">
             As-is
+          </a>
+          <a className="nav-item" href="#bpmn">
+            BPMN
+          </a>
+          <a className="nav-item" href="#analisis">
+            Analisis
+          </a>
+          <a className="nav-item" href="#tobe">
+            To-be
+          </a>
+          <a className="nav-item" href="#simulacion">
+            Simulacion
+          </a>
+          <a className="nav-item" href="#entregables">
+            Entregables
           </a>
           <a className="nav-item" href="#repositorio">
             Repositorio
@@ -1132,7 +1499,267 @@ export function App() {
           </section>
         </section>
 
-        <section className="discovery-layout" id="levantamiento">
+        <section className="orchestration-layout" id="orquestacion">
+          <section className="panel orchestration-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">FASE 1.B</p>
+                <h2>Orquestador autonomo</h2>
+              </div>
+              <Workflow size={30} aria-hidden="true" />
+            </div>
+
+            {orchestration ? (
+              <>
+                <div className="progress-block">
+                  <div>
+                    <strong>{orchestration.autonomy_progress_percent}%</strong>
+                    <span>{orchestration.run.status}</span>
+                  </div>
+                  <div className="progress-track" aria-hidden="true">
+                    <span style={{ width: `${orchestration.autonomy_progress_percent}%` }} />
+                  </div>
+                </div>
+
+                <p className="muted">{orchestrationMessage ?? orchestration.next_action_es}</p>
+
+                {orchestration.blockers_es.length > 0 ? (
+                  <div className="blocker-stack">
+                    {orchestration.blockers_es.map((blocker) => (
+                      <p key={blocker}>{blocker}</p>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="orchestration-actions">
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={isOrchestrating || !selectedCaseId || orchestration.run.status !== "not_started"}
+                    onClick={handleStartOrchestration}
+                  >
+                    <Play size={18} aria-hidden="true" />
+                    <span>Iniciar</span>
+                  </button>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    disabled={
+                      isOrchestrating ||
+                      !selectedCaseId ||
+                      orchestration.run.status === "completed" ||
+                      orchestration.run.status === "waiting_human"
+                    }
+                    onClick={handleAdvanceOrchestration}
+                  >
+                    <StepForward size={16} aria-hidden="true" />
+                    Avanzar
+                  </button>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    disabled={isOrchestrating || !selectedCaseId || orchestration.run.status !== "waiting_human"}
+                    onClick={() => handleCheckpointDecision("approve")}
+                  >
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    Aprobar checkpoint
+                  </button>
+                  <button
+                    className="ghost-button danger"
+                    type="button"
+                    disabled={isOrchestrating || !selectedCaseId || orchestration.run.status === "not_started"}
+                    onClick={handleRollbackOrchestration}
+                  >
+                    <RotateCcw size={16} aria-hidden="true" />
+                    Rollback
+                  </button>
+                </div>
+
+                <div className="checkpoint-grid">
+                  <label>
+                    Supervisor
+                    <input id="checkpoint-reviewer" defaultValue="Supervisor BPM" />
+                  </label>
+                  <label>
+                    Comentario
+                    <input id="checkpoint-comment" placeholder="Decision, condicion o evidencia requerida" />
+                  </label>
+                </div>
+
+                <form className="case-form context-form" onSubmit={handleAddOrchestrationContext}>
+                  <label>
+                    Actor
+                    <input name="actor" defaultValue="Especialista BPM" />
+                  </label>
+                  <label>
+                    Contexto compartido
+                    <textarea
+                      name="message_es"
+                      rows={3}
+                      placeholder="Decision, supuesto, restriccion o hallazgo que debe viajar entre fases"
+                    />
+                  </label>
+                  <button className="ghost-button" type="submit" disabled={isOrchestrating || !selectedCaseId}>
+                    Registrar contexto
+                  </button>
+                </form>
+
+                {orchestrationError ? <p className="form-error">{orchestrationError}</p> : null}
+              </>
+            ) : (
+              <p className="muted">Selecciona un caso para activar el backbone de orquestacion.</p>
+            )}
+          </section>
+
+          <section className="panel orchestration-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Maquina de estados</p>
+                <h2>8 fases del ciclo BPM</h2>
+              </div>
+              {orchestration ? (
+                <span className="status-tag standalone">
+                  Fase {orchestration.run.current_phase_number}
+                </span>
+              ) : null}
+            </div>
+
+            {orchestration ? (
+              <>
+                <div className="phase-list">
+                  {orchestration.phases.map((phase) => (
+                    <article className={`phase-item ${phase.status}`} key={phase.id}>
+                      <div className="phase-number">{phase.phase_number}</div>
+                      <div>
+                        <div className="phase-title-row">
+                          <h3>{phase.title}</h3>
+                          <span>{phase.status}</span>
+                        </div>
+                        <p>{phase.objective_es}</p>
+                        <div className="case-meta">
+                          <span>{phase.agent_role}</span>
+                          <span>{phase.checkpoint_status}</span>
+                          {phase.requires_human_checkpoint ? <span>checkpoint</span> : <span>automatico</span>}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="event-list">
+                  <h3>Eventos recientes</h3>
+                  {orchestration.events.slice(0, 5).map((event) => (
+                    <article className="history-item" key={event.id}>
+                      <strong>
+                        {event.event_type}
+                        {event.phase_number ? ` - fase ${event.phase_number}` : ""}
+                      </strong>
+                      <p>{event.message_es}</p>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="muted">La secuencia se genera al seleccionar un caso.</p>
+            )}
+          </section>
+        </section>
+
+        <section className="panel discovery-agent-panel" id="levantamiento">
+          <div className="list-header">
+            <div>
+              <p className="section-label">Agente Levantador</p>
+              <h2>Completitud y preguntas inteligentes</h2>
+            </div>
+            {discoveryAssessment ? (
+              <span className="status-tag standalone">{discoveryAssessment.readiness_level}</span>
+            ) : null}
+          </div>
+
+          {discoveryAssessment ? (
+            <>
+              <div className="assessment-summary">
+                <div className="progress-block compact-progress">
+                  <div>
+                    <strong>{discoveryAssessment.completeness_score}%</strong>
+                    <span>as-is</span>
+                  </div>
+                  <div className="progress-track" aria-hidden="true">
+                    <span style={{ width: `${discoveryAssessment.completeness_score}%` }} />
+                  </div>
+                </div>
+                <div className="case-meta">
+                  <span>{discoveryAssessment.gaps.length} vacios</span>
+                  <span>{discoveryAssessment.contradictions.length} contradicciones</span>
+                  <span>{discoveryAssessment.generated_questions.length} preguntas</span>
+                </div>
+              </div>
+
+              <div className="assessment-grid">
+                <div className="history-stack">
+                  <h3>Dimensiones</h3>
+                  {discoveryAssessment.dimensions.map((dimension) => (
+                    <article className="history-item" key={dimension.code}>
+                      <strong>
+                        {dimension.label_es} - {dimension.score}/{dimension.max_score}
+                      </strong>
+                      <p>{dimension.detail_es}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="history-stack">
+                  <h3>Preguntas sugeridas</h3>
+                  {discoveryAssessment.generated_questions.slice(0, 5).map((question) => (
+                    <article className="history-item" key={`${question.role}-${question.question_es}`}>
+                      <strong>
+                        {question.priority} - {question.role}
+                      </strong>
+                      <p>{question.question_es}</p>
+                      <p>{question.expected_evidence_es}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="history-stack">
+                  <h3>Vacios principales</h3>
+                  {discoveryAssessment.gaps.slice(0, 5).map((gap) => (
+                    <article className="history-item" key={gap.code}>
+                      <strong>
+                        {gap.severity} - {gap.title_es}
+                      </strong>
+                      <p>{gap.recommendation_es}</p>
+                    </article>
+                  ))}
+                  {discoveryAssessment.gaps.length === 0 ? <p className="muted">No hay vacios detectados.</p> : null}
+                </div>
+
+                <div className="history-stack">
+                  <h3>Contradicciones</h3>
+                  {discoveryAssessment.contradictions.slice(0, 4).map((contradiction) => (
+                    <article className="history-item" key={contradiction.topic}>
+                      <strong>{contradiction.topic}</strong>
+                      <p>{contradiction.recommendation_es}</p>
+                    </article>
+                  ))}
+                  {discoveryAssessment.contradictions.length === 0 ? (
+                    <p className="muted">No hay contradicciones detectadas.</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="next-actions">
+                {discoveryAssessment.next_actions_es.map((action) => (
+                  <p key={action}>{action}</p>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="muted">Selecciona un caso para que el agente levante brechas y preguntas.</p>
+          )}
+        </section>
+
+        <section className="discovery-layout">
           <section className="panel discovery-panel">
             <div className="list-header">
               <div>
@@ -1399,6 +2026,359 @@ export function App() {
               <p className="muted">
                 Registra elementos manualmente o usa el boton de extraccion en una entrevista con notas.
               </p>
+            )}
+          </section>
+        </section>
+
+        <section className="bpmn-layout" id="bpmn">
+          <section className="panel bpmn-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Agente Modelador BPMN</p>
+                <h2>BPMN as-is inicial</h2>
+              </div>
+              {bpmnDraft ? (
+                <span className="status-tag standalone">{bpmnDraft.is_valid ? "valido" : "con errores"}</span>
+              ) : null}
+            </div>
+
+            {bpmnDraft ? (
+              <>
+                <div className="case-meta">
+                  <span>{bpmnDraft.source_element_count} elementos fuente</span>
+                  <span>{bpmnDraft.task_count} tareas</span>
+                  <span>{bpmnDraft.gateway_count} gateways</span>
+                  <span>{bpmnDraft.issues.length} hallazgos</span>
+                </div>
+                <div className="orchestration-actions">
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    disabled={isGeneratingBpmn || !selectedCaseId}
+                    onClick={() => handleGenerateBpmn(false)}
+                  >
+                    Vista previa
+                  </button>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={isGeneratingBpmn || !selectedCaseId}
+                    onClick={() => handleGenerateBpmn(true)}
+                  >
+                    <GitBranch size={18} aria-hidden="true" />
+                    <span>Guardar BPMN</span>
+                  </button>
+                </div>
+                {bpmnMessage ? <p className="success-note">{bpmnMessage}</p> : null}
+                {bpmnError ? <p className="form-error">{bpmnError}</p> : null}
+                <pre className="bpmn-xml-preview">{bpmnDraft.bpmn_xml}</pre>
+              </>
+            ) : (
+              <p className="muted">Selecciona un caso para generar el modelo BPMN desde el inventario as-is.</p>
+            )}
+          </section>
+
+          <section className="panel bpmn-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Validacion BPMN</p>
+                <h2>Checklist tecnico</h2>
+              </div>
+            </div>
+            {bpmnDraft ? (
+              <div className="history-stack">
+                {bpmnDraft.issues.map((issue) => (
+                  <article className="history-item" key={`${issue.code}-${issue.element_ref ?? "global"}`}>
+                    <strong>
+                      {issue.severity} - {issue.code}
+                    </strong>
+                    <p>{issue.message_es}</p>
+                    {issue.element_ref ? <p>Elemento: {issue.element_ref}</p> : null}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">La validacion aparecera cuando exista un borrador BPMN.</p>
+            )}
+          </section>
+        </section>
+
+        <section className="analysis-layout" id="analisis">
+          <section className="panel analysis-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Agente Analista</p>
+                <h2>Hallazgos y mejora</h2>
+              </div>
+              {processAnalysis ? (
+                <span className="status-tag standalone">{processAnalysis.analysis_score}%</span>
+              ) : null}
+            </div>
+            {processAnalysis ? (
+              <>
+                <div className="case-meta">
+                  <span>{processAnalysis.findings.length} hallazgos</span>
+                  <span>{processAnalysis.metrics.length} metricas</span>
+                  <span>{processAnalysis.risks_controls.length} riesgos</span>
+                  <span>{processAnalysis.improvement_candidates.length} mejoras</span>
+                </div>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={isAnalyzingProcess || !selectedCaseId}
+                  onClick={handleCreateAnalysisReport}
+                >
+                  <FileText size={18} aria-hidden="true" />
+                  <span>Guardar analisis</span>
+                </button>
+                {analysisMessage ? <p className="success-note">{analysisMessage}</p> : null}
+                {analysisError ? <p className="form-error">{analysisError}</p> : null}
+                <div className="history-stack">
+                  {processAnalysis.findings.slice(0, 6).map((finding) => (
+                    <article className="history-item" key={`${finding.finding_type}-${finding.title_es}`}>
+                      <strong>
+                        {finding.severity} - {finding.title_es}
+                      </strong>
+                      <p>{finding.detail_es}</p>
+                      <p>{finding.recommendation_es}</p>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="muted">Selecciona un caso para analizar hallazgos, riesgos y oportunidades.</p>
+            )}
+          </section>
+
+          <section className="panel analysis-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Metricas y candidatos</p>
+                <h2>Base cuantitativa</h2>
+              </div>
+            </div>
+            {processAnalysis ? (
+              <>
+                <div className="history-stack">
+                  <h3>Metricas detectadas</h3>
+                  {processAnalysis.metrics.slice(0, 4).map((metric) => (
+                    <article className="history-item" key={`${metric.name_es}-${metric.source_es}`}>
+                      <strong>
+                        {metric.name_es}: {metric.value ?? "pendiente"} {metric.unit ?? ""}
+                      </strong>
+                      <p>{metric.interpretation_es}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="history-stack">
+                  <h3>Mejoras candidatas</h3>
+                  {processAnalysis.improvement_candidates.slice(0, 4).map((item) => (
+                    <article className="history-item" key={item.title_es}>
+                      <strong>{item.title_es}</strong>
+                      <p>{item.impact_es}</p>
+                      <p>{item.effort_es}</p>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="muted">El analisis aparecera cuando exista inventario as-is.</p>
+            )}
+          </section>
+        </section>
+
+        <section className="redesign-layout" id="tobe">
+          <section className="panel redesign-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Agente Rediseñador</p>
+                <h2>Alternativas to-be</h2>
+              </div>
+              {processRedesign ? (
+                <span className="status-tag standalone">{processRedesign.alternatives.length}</span>
+              ) : null}
+            </div>
+            {processRedesign ? (
+              <>
+                <p className="muted">
+                  Recomendacion: {processRedesign.comparison.recommended_option_title_es}.{" "}
+                  {processRedesign.comparison.rationale_es}
+                </p>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={isRedesigningProcess || !selectedCaseId}
+                  onClick={handleCreateRedesignReport}
+                >
+                  <FileText size={18} aria-hidden="true" />
+                  <span>Guardar to-be</span>
+                </button>
+                {redesignMessage ? <p className="success-note">{redesignMessage}</p> : null}
+                {redesignError ? <p className="form-error">{redesignError}</p> : null}
+                <div className="history-stack">
+                  {processRedesign.alternatives.map((alternative) => (
+                    <article className="history-item" key={alternative.title_es}>
+                      <strong>
+                        {alternative.option_type} - {alternative.title_es}
+                      </strong>
+                      <p>{alternative.description_es}</p>
+                      <p>{alternative.expected_impact_es}</p>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="muted">El to-be aparecera cuando exista analisis del proceso.</p>
+            )}
+          </section>
+
+          <section className="panel redesign-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Validacion requerida</p>
+                <h2>Cambios y supuestos</h2>
+              </div>
+            </div>
+            {processRedesign ? (
+              <div className="history-stack">
+                {processRedesign.alternatives.slice(0, 3).map((alternative) => (
+                  <article className="history-item" key={`${alternative.title_es}-changes`}>
+                    <strong>{alternative.title_es}</strong>
+                    <p>Cambios: {alternative.changes_es.join("; ")}</p>
+                    <p>Validar: {alternative.required_validation_es.join("; ")}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Las validaciones apareceran con las alternativas to-be.</p>
+            )}
+          </section>
+        </section>
+
+        <section className="simulation-layout" id="simulacion">
+          <section className="panel simulation-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Agente Simulador</p>
+                <h2>Escenarios iniciales</h2>
+              </div>
+              {processSimulation ? (
+                <span className="status-tag standalone">
+                  -{processSimulation.comparison.cycle_time_reduction_percent}%
+                </span>
+              ) : null}
+            </div>
+            {processSimulation ? (
+              <>
+                <p className="muted">
+                  Recomendado: {processSimulation.comparison.recommended_scenario_es}.{" "}
+                  {processSimulation.comparison.interpretation_es}
+                </p>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={isSimulatingProcess || !selectedCaseId}
+                  onClick={handleCreateSimulationReport}
+                >
+                  <FileText size={18} aria-hidden="true" />
+                  <span>Guardar simulacion</span>
+                </button>
+                {simulationMessage ? <p className="success-note">{simulationMessage}</p> : null}
+                {simulationError ? <p className="form-error">{simulationError}</p> : null}
+                <div className="history-stack">
+                  {processSimulation.scenarios.map((scenario) => (
+                    <article className="history-item" key={scenario.name_es}>
+                      <strong>{scenario.name_es}</strong>
+                      <p>
+                        Ciclo: {scenario.cycle_time_hours}h | Esfuerzo: {scenario.manual_effort_hours}h | Costo indice:{" "}
+                        {scenario.cost_index}
+                      </p>
+                      <p>Riesgo SLA: {scenario.sla_risk}</p>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="muted">La simulacion aparecera cuando existan alternativas to-be.</p>
+            )}
+          </section>
+
+          <section className="panel simulation-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Sensibilidad</p>
+                <h2>Supuestos clave</h2>
+              </div>
+            </div>
+            {processSimulation ? (
+              <div className="history-stack">
+                {processSimulation.sensitivity.map((point) => (
+                  <article className="history-item" key={point.variable_es}>
+                    <strong>{point.variable_es}</strong>
+                    <p>{point.base_case_es}</p>
+                    <p>{point.high_case_es}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Los supuestos se muestran junto con la simulacion.</p>
+            )}
+          </section>
+        </section>
+
+        <section className="deliverable-layout" id="entregables">
+          <section className="panel deliverable-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Agente Redactor</p>
+                <h2>Informe final</h2>
+              </div>
+              {finalDeliverable ? <span className="status-tag standalone">final</span> : null}
+            </div>
+            {finalDeliverable ? (
+              <>
+                <p className="muted">{finalDeliverable.executive_summary_es}</p>
+                <p className="muted">{finalDeliverable.technical_summary_es}</p>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={isCreatingDeliverable || !selectedCaseId}
+                  onClick={handleCreateFinalDeliverable}
+                >
+                  <FileText size={18} aria-hidden="true" />
+                  <span>Guardar informe</span>
+                </button>
+                {deliverableMessage ? <p className="success-note">{deliverableMessage}</p> : null}
+                {deliverableError ? <p className="form-error">{deliverableError}</p> : null}
+              </>
+            ) : (
+              <p className="muted">El informe final aparecera cuando exista analisis, to-be y simulacion.</p>
+            )}
+          </section>
+
+          <section className="panel deliverable-panel">
+            <div className="list-header">
+              <div>
+                <p className="section-label">Plan</p>
+                <h2>Implementacion</h2>
+              </div>
+            </div>
+            {finalDeliverable ? (
+              <div className="history-stack">
+                {finalDeliverable.implementation_plan.map((step) => (
+                  <article className="history-item" key={step.order}>
+                    <strong>
+                      {step.order}. {step.title_es}
+                    </strong>
+                    <p>
+                      {step.timeframe_es} - {step.owner_es}
+                    </p>
+                    <p>{step.deliverable_es}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">El plan se genera junto con el informe final.</p>
             )}
           </section>
         </section>

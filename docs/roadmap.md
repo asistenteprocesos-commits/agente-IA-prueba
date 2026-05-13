@@ -6,6 +6,14 @@ Este proyecto debe avanzar por etapas controladas. La meta no es crear una demo 
 
 La regla principal sera esta: cada etapa debe terminar con un entregable usable, verificable y conectado con la arquitectura general.
 
+## Estado actual v1.1 - 2026-05-13
+
+La base documental y cognitiva del agente ya existe: glosario extendido, patrones BPMN, antipatrones, casos, rubrica, dataset inicial, vault Obsidian, endpoints de perfil de entrenamiento y perfil LLM local.
+
+La brecha principal ya no es conceptual, sino de ejecucion autonoma. El analisis de arquitectura marca que la autonomia completa todavia es baja porque faltan orquestador, agentes especializados, busqueda vectorial real, modelado BPMN automatico, process mining, simulacion y centro de supervision.
+
+Por eso el siguiente bloque no debe volver a Etapa 0. Debe convertir la base de conocimiento v1.1 en capacidades ejecutables v1.2.
+
 ## Etapa 0 - Fundacion del producto
 
 Objetivo: dejar claro que vamos a construir, para quien, con que alcance y bajo que reglas de supervision.
@@ -248,16 +256,29 @@ Criterio de salida:
 
 ## Orden inmediato
 
-Ahora debemos completar la `Etapa 0`. Despues construiremos el esqueleto tecnico del MVP.
+La `Etapa 0` y la base de `Etapa 1` ya estan documentadas. El orden inmediato para retomar es `v1.2`:
 
-La primera decision practica sera definir el MVP inicial:
+1. `RAG vectorial`: embeddings + indice local/vectorial + busqueda semantica con citas.
+2. `Orquestador minimo`: maquina de estados para fases del caso, con checkpoints humanos. Estado: implementado como Fase 1.B inicial.
+3. `Agente Levantador`: preguntas por rol, vacios, contradicciones y completitud. Estado: implementado inicial.
+4. `Agente Modelador BPMN`: generar BPMN XML inicial y validarlo. Estado: implementado inicial.
+5. `Agente Analista`: hallazgos, cuellos, riesgos, controles y metricas. Estado: implementado inicial.
+6. `Agente Redisenador`: alternativas to-be, impacto, esfuerzo y riesgo. Estado: implementado inicial.
+7. `Agente Simulador`: escenarios, sensibilidad y resultados cuantitativos. Estado: implementado inicial.
+8. `Agente Redactor`: informe ejecutivo, tecnico y plan de implementacion. Estado: implementado inicial.
+9. `Agente Supervisor avanzado`: aprobaciones, bloqueos y escalamiento.
+10. `Pruebas de conocimiento`: preguntas reales BPM respondidas con fuentes, score y brechas.
+11. `Validador BPMN`: cargar XML BPMN y detectar errores basicos contra patrones.
+12. `Process mining inicial`: carga de CSV, mapeo de columnas y primeras variantes.
+
+El MVP inicial se mantiene como un MVP combinado pero pequeno:
 
 1. `MVP documental`: cargar libros y consultar conocimiento BPM con citas.
 2. `MVP de levantamiento`: crear casos, entrevistar y producir narrativa `as-is`.
 3. `MVP BPMN`: generar y editar BPMN desde una narrativa de proceso.
 4. `MVP process mining`: cargar event logs y contrastarlos contra el `as-is`.
 
-Recomendacion: empezar por un MVP combinado pero pequeno:
+Recomendacion practica:
 
 - cargar documentos;
 - crear un caso de proceso;

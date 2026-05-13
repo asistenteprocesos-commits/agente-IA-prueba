@@ -143,3 +143,46 @@ class ProcessAsIsElementResponse(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
+
+
+class DiscoveryQuestionResponse(BaseModel):
+    role: StakeholderRole
+    priority: str
+    question_es: str
+    reason_es: str
+    expected_evidence_es: str
+
+
+class DiscoveryGapResponse(BaseModel):
+    code: str
+    severity: str
+    title_es: str
+    detail_es: str
+    recommendation_es: str
+
+
+class DiscoveryContradictionResponse(BaseModel):
+    topic: str
+    severity: str
+    evidence_es: list[str]
+    recommendation_es: str
+
+
+class DiscoveryCompletenessDimensionResponse(BaseModel):
+    code: str
+    label_es: str
+    score: int
+    max_score: int
+    status: str
+    detail_es: str
+
+
+class DiscoveryAssessmentResponse(BaseModel):
+    case_id: UUID
+    readiness_level: str
+    completeness_score: int
+    dimensions: list[DiscoveryCompletenessDimensionResponse]
+    generated_questions: list[DiscoveryQuestionResponse]
+    gaps: list[DiscoveryGapResponse]
+    contradictions: list[DiscoveryContradictionResponse]
+    next_actions_es: list[str]

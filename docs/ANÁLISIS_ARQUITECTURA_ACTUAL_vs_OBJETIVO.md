@@ -84,13 +84,15 @@ backend/app/
 │   ├── process_case.py ................ ✅ Modelo casos
 │   ├── knowledge.py ................... ✅ Modelo documentos
 │   ├── discovery.py ................... ✅ Modelo levantamiento
-│   └── process_repository.py .......... ✅ Modelo repositorio
+│   ├── process_repository.py .......... ✅ Modelo repositorio
+│   └── orchestration.py ............... ✅ Modelo orquestador
 ├── schemas/ ........................... ✅ Pydantic validations
 ├── services/
 │   ├── knowledge_service.py ........... ✅ Ingesta documentos
 │   ├── discovery_service.py ........... ✅ Levantamiento
 │   ├── process_repository_service.py .. ✅ Versionado
 │   ├── local_llm_service.py ........... ✅ Ollama wrapper
+│   ├── orchestration_service.py ....... ✅ Maquina de estados
 │   └── process_case_service.py ........ ✅ CRUD casos
 └── api/routes/
     ├── health.py ...................... ✅ Health check
@@ -98,6 +100,7 @@ backend/app/
     ├── process_cases.py ............... ✅ Endpoints casos
     ├── process_discovery.py ........... ✅ Endpoints levantamiento
     ├── process_repositories.py ........ ✅ Endpoints versionado
+    ├── orchestration.py ............... ✅ Endpoints orquestacion
     └── local_llm.py ................... ✅ Endpoints LLM local
 ```
 
@@ -123,7 +126,7 @@ docs/agent-training/
 ├── casos-bpmn-completos.md ............ ✅ 10 casos reales
 ├── antipatrones-errores-comunes.md .... ✅ 10+ errores
 ├── rubrica-evaluacion-automatica.md ... ✅ 10 criterios 0-4
-└── datasets/bpm_instruction_dataset.jsonl ✅ 101 ejemplos
+└── datasets/*.jsonl .................... ✅ 101 ejemplos
 ```
 
 #### Obsidian Vault (Grafo Conocimiento)
@@ -141,14 +144,22 @@ storage/obsidian-bpm-vault/
 
 #### 1. ORQUESTADOR DE AGENTES (CRÍTICO)
 ```
-⚠️ NO EXISTE
+⚠️ PARCIAL - PRIMER BACKBONE IMPLEMENTADO
 
-Requerido:
-├─ Coordinador central (LangGraph, CrewAI, o similar)
-├─ Estado compartido entre agentes
-├─ Pasaje de contexto entre etapas
-├─ Toma de decisiones autónoma (ir a next stage o pedir aprobación)
-└─ Rollback en caso de error
+Implementado:
+├─ Coordinador central propio en FastAPI
+├─ Maquina de estados con 8 fases
+├─ Estado persistente por caso
+├─ Eventos de orquestacion y contexto compartido
+├─ Pausas por checkpoints humanos
+├─ Aprobacion/rechazo de checkpoints
+└─ Rollback hacia fase previa
+
+Pendiente:
+├─ Adaptador LangGraph o motor equivalente
+├─ Ejecucion real de agentes especializados por fase
+├─ Decision autonoma basada en evidencias/RAG
+└─ Politicas avanzadas de retry, compensacion y escalamiento
 ```
 
 #### 2. AGENTES ESPECIALIZADOS (CRÍTICO)
@@ -156,23 +167,44 @@ Requerido:
 ✅ Agente de Conocimiento .............. PARCIAL
    └─ Existe RAG básico, falta: embeddings, Qdrant, búsqueda avanzada
 
-❌ Agente Levantador .................. NO EXISTE
-   └─ Falta: motor de entrevistas automáticas, generar preguntas inteligentes
+⚠️ Agente Levantador .................. PARCIAL
+   ├─ Existe: preguntas inteligentes por rol
+   ├─ Existe: score de completitud del as-is
+   ├─ Existe: deteccion de vacios de levantamiento
+   ├─ Existe: deteccion heuristica de contradicciones
+   └─ Falta: entrevistas autonomas con LLM, agenda, transcripcion y seguimiento
 
-❌ Agente Modelador BPMN .............. NO EXISTE
-   └─ Falta: convertir narrativa a XML BPMN, validador BPMN 2.0, visualizador
+⚠️ Agente Modelador BPMN .............. PARCIAL
+   ├─ Existe: convertir elementos as-is a BPMN XML inicial
+   ├─ Existe: validador basico BPMN 2.0
+   ├─ Existe: guardar BPMN como artefacto versionado
+   └─ Falta: visualizador bpmn-js y modelado avanzado de gateways/eventos
 
-❌ Agente Analista .................... NO EXISTE
-   └─ Falta: analizar variantes, identificar cuellos, calcular métricas
+⚠️ Agente Analista .................... PARCIAL
+   ├─ Existe: hallazgos heurísticos desde as-is y entrevistas
+   ├─ Existe: identificacion de cuellos, desperdicios y oportunidades
+   ├─ Existe: extraccion inicial de metricas desde texto
+   ├─ Existe: riesgos/controles iniciales
+   └─ Falta: process mining real, conformance y analisis estadistico avanzado
 
-❌ Agente Rediseñador ................. NO EXISTE
-   └─ Falta: generar alternativas to-be, comparar opciones
+⚠️ Agente Rediseñador ................. PARCIAL
+   ├─ Existe: generar alternativas to-be desde hallazgos
+   ├─ Existe: separar quick wins, estructural, control y automatizacion
+   ├─ Existe: comparar opcion recomendada con supuestos
+   └─ Falta: co-diseno con areas, variantes avanzadas y estimacion cuantitativa profunda
 
-❌ Agente Simulador ................... NO EXISTE
-   └─ Falta: motor de simulación, escenarios, sensibilidad, pronósticos
+⚠️ Agente Simulador ................... PARCIAL
+   ├─ Existe: escenarios iniciales as-is vs to-be
+   ├─ Existe: sensibilidad basica
+   ├─ Existe: resultado versionado
+   └─ Falta: simulacion discreta calibrada con SimPy/PM4Py y pronosticos avanzados
 
-❌ Agente Redactor .................... NO EXISTE
-   └─ Falta: templates de reportes, exportación a Word/PDF/PowerPoint
+⚠️ Agente Redactor .................... PARCIAL
+   ├─ Existe: informe ejecutivo
+   ├─ Existe: informe tecnico
+   ├─ Existe: plan de implementacion
+   ├─ Existe: entregable final versionado
+   └─ Falta: exportacion Word/PDF/PowerPoint con plantillas corporativas
 
 ❌ Agente Supervisor .................. NO EXISTE
    └─ Falta: workflow de aprobaciones, puntos de control, escalamiento
@@ -185,7 +217,8 @@ Requerido:
 Actual:
 ├─ React + Vite básico
 ├─ Test de health check
-└─ Sin componentes reales
+├─ Casos, conocimiento, levantamiento y repositorio
+└─ Panel inicial de orquestacion con fases, checkpoints y eventos
 
 Requerido:
 ├─ Dashboard de casos
@@ -271,17 +304,17 @@ Requerido:
 
 | Capacidad | Requerida | Existe | % | Estado |
 |-----------|-----------|--------|---|--------|
-| Levantamiento de procesos | CRÍTICA | Parcial | 30% | ⚠️ |
-| Modelado BPMN automático | CRÍTICA | No | 0% | ❌ |
-| Análisis cuantitativo | CRÍTICA | No | 0% | ❌ |
-| Propuestas de mejora | CRÍTICA | Parcial (entrenamiento) | 20% | ⚠️ |
-| Simulación | CRÍTICA | No | 0% | ❌ |
+| Levantamiento de procesos | CRÍTICA | Parcial | 45% | ⚠️ |
+| Modelado BPMN automático | CRÍTICA | Parcial | 25% | ⚠️ |
+| Análisis cuantitativo | CRÍTICA | Parcial | 25% | ⚠️ |
+| Propuestas de mejora | CRÍTICA | Parcial | 45% | ⚠️ |
+| Simulación | CRÍTICA | Parcial | 25% | ⚠️ |
 | RAG / Búsqueda conocimiento | CRÍTICA | Parcial | 40% | ⚠️ |
 | Process Mining | CRÍTICA | No | 0% | ❌ |
-| Orquestación de agentes | CRÍTICA | No | 0% | ❌ |
-| Centro de supervisión | CRÍTICA | No | 0% | ❌ |
-| Portal web interactivo | CRÍTICA | 5% | 5% | ❌ |
-| **TOTAL AUTONOMÍA** | - | - | **11%** | ❌ |
+| Orquestación de agentes | CRÍTICA | Parcial | 45% | ⚠️ |
+| Centro de supervisión | CRÍTICA | Parcial | 15% | ⚠️ |
+| Portal web interactivo | CRÍTICA | Parcial | 12% | ⚠️ |
+| **TOTAL AUTONOMÍA** | - | - | **35%** | ⚠️ |
 
 ---
 
@@ -291,7 +324,7 @@ Requerido:
 ```
 Objetivo: Crear backbone del agente autónomo
 
-✅ Migrar a LangGraph (coordinador de agentes)
+⏳ Migrar a LangGraph (coordinador de agentes)
 ✅ Implementar máquina de estados (8 fases)
 ✅ Pasar contexto entre agentes
 ✅ Implementar puntos de control/pausa
@@ -304,49 +337,49 @@ Deliverable: Agente puede ejecutar 8 fases secuencialmente con pausa en puntos c
 
 #### 2.1 Agente Levantador
 ```
-└─ Generar cuestionarios inteligentes por rol
-└─ Capturar entrevistas (transcritas → notas)
-└─ Detectar contradicciones
-└─ Calcular completitud
+✅ Generar cuestionarios inteligentes por rol
+⏳ Capturar entrevistas (transcritas → notas)
+✅ Detectar contradicciones
+✅ Calcular completitud
 ```
 
 #### 2.2 Agente Modelador BPMN
 ```
-└─ Convertir narrativa a BPMN XML automáticamente
-└─ Validador BPMN 2.0 (anti-errores)
-└─ Visualizador embebido
-└─ Sugerencias de mejora notación
+✅ Convertir narrativa/elementos a BPMN XML automáticamente
+✅ Validador BPMN 2.0 inicial (anti-errores)
+⏳ Visualizador embebido
+⏳ Sugerencias de mejora notación
 ```
 
 #### 2.3 Agente Analista
 ```
-└─ Detectar variantes en narrativa
-└─ Calcular tiempos acumulados
-└─ Identificar cuellos de botella
-└─ Clasificar riesgos y controles
+⏳ Detectar variantes en narrativa
+✅ Calcular metricas iniciales desde texto
+✅ Identificar cuellos de botella
+✅ Clasificar riesgos y controles iniciales
 ```
 
 #### 2.4 Agente Rediseñador
 ```
-└─ Generar N opciones to-be
-└─ Comparar alternativas
-└─ Estimar impacto de cada una
+✅ Generar N opciones to-be
+✅ Comparar alternativas
+⏳ Estimar impacto cuantitativo de cada una
 ```
 
 #### 2.5 Agente Simulador
 ```
-└─ Integrar PM4Py o SimPy
-└─ Correr escenarios
-└─ Análisis de sensibilidad
-└─ Exportar resultados
+⏳ Integrar PM4Py o SimPy
+✅ Correr escenarios iniciales
+✅ Análisis de sensibilidad basico
+✅ Exportar resultados versionados
 ```
 
 #### 2.6 Agente Redactor
 ```
-└─ Templates de reportes
-└─ Exportación a Word/PDF/PowerPoint
-└─ Informe ejecutivo + técnico
-└─ Plan de implementación
+✅ Templates markdown de reportes
+⏳ Exportación a Word/PDF/PowerPoint
+✅ Informe ejecutivo + técnico
+✅ Plan de implementación
 ```
 
 #### 2.7 Agente Supervisor
@@ -476,11 +509,18 @@ Deliverable: Agente puede ejecutar 8 fases secuencialmente con pausa en puntos c
 
 ### Inmediato (Esta semana)
 1. ✅ **Entrenamiento del agente**: Ya hecho (glosario, casos, patrones)
-2. ⏭️ **Decidir stack de orquestación**: LangGraph vs CrewAI vs LangChain agents
+2. ✅ **Backbone de orquestación**: Máquina de 8 fases, checkpoints y rollback
+3. ⏭️ **Decidir/integrar motor de agentes**: LangGraph vs CrewAI vs LangChain agents
 
 ### Corto plazo (Semanas 1-4)
-3. ⏭️ **Implementar orquestador**: Máquina de 8 fases con puntos de control
-4. ⏭️ **Agente Levantador**: Generar cuestionarios, capturar entrevistas
+4. ✅ **Agente Levantador inicial**: Preguntas, vacios, contradicciones y completitud
+5. ✅ **Agente Modelador BPMN inicial**: Elementos as-is hacia BPMN XML validable y versionado
+6. ✅ **Agente Analista inicial**: Hallazgos, cuellos de botella, riesgos y metricas
+7. ✅ **Agente Rediseñador inicial**: Alternativas to-be, impacto cualitativo, esfuerzo y riesgos
+8. ✅ **Agente Simulador inicial**: Escenarios, sensibilidad y resultados cuantitativos preliminares
+9. ✅ **Agente Redactor inicial**: Informe ejecutivo/tecnico y plan de implementacion
+10. ⏭️ **Agente Supervisor avanzado**: Aprobaciones, escalamiento y bloqueos automáticos
+11. ⏭️ **Adaptador LangGraph**: Conectar fases con agentes ejecutables
 
 ### Mediano plazo (Semanas 5-12)
 5. ⏭️ **Agentes especializados**: Modelador BPMN, Analista, Simulador
@@ -498,8 +538,8 @@ Deliverable: Agente puede ejecutar 8 fases secuencialmente con pausa en puntos c
 
 ### Estado Actual
 - **Entrenamiento del agente**: ✅ **COMPLETO (68% mejora)**
-- **Infraestructura**: ⚠️ **PARCIAL (11% autonomía)**
-- **Orquestación**: ❌ **NO EXISTE**
+- **Infraestructura**: ⚠️ **PARCIAL (35% autonomía)**
+- **Orquestación**: ⚠️ **PARCIAL - BACKBONE IMPLEMENTADO**
 - **Agentes especializados**: ❌ **MAYORÍA NO EXISTE**
 
 ### Para lograr AGENTE AUTÓNOMO COMPLETO:
@@ -508,4 +548,3 @@ Necesitas implementar **6 componentes críticos** + **7 agentes especializados**
 **Tiempo estimado**: 12-24 semanas con equipo dedicado.
 
 **No es desviación**: Es el plan correcto. El entrenamiento de v1.1 es **solo la base cognitiva**. Ahora necesitas la **infraestructura de ejecución**.
-

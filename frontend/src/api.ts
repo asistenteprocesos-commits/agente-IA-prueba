@@ -262,6 +262,49 @@ export type ProcessAsIsElement = {
   updated_at: string;
 };
 
+export type DiscoveryQuestion = {
+  role: string;
+  priority: string;
+  question_es: string;
+  reason_es: string;
+  expected_evidence_es: string;
+};
+
+export type DiscoveryGap = {
+  code: string;
+  severity: string;
+  title_es: string;
+  detail_es: string;
+  recommendation_es: string;
+};
+
+export type DiscoveryContradiction = {
+  topic: string;
+  severity: string;
+  evidence_es: string[];
+  recommendation_es: string;
+};
+
+export type DiscoveryCompletenessDimension = {
+  code: string;
+  label_es: string;
+  score: number;
+  max_score: number;
+  status: string;
+  detail_es: string;
+};
+
+export type DiscoveryAssessment = {
+  case_id: string;
+  readiness_level: string;
+  completeness_score: number;
+  dimensions: DiscoveryCompletenessDimension[];
+  generated_questions: DiscoveryQuestion[];
+  gaps: DiscoveryGap[];
+  contradictions: DiscoveryContradiction[];
+  next_actions_es: string[];
+};
+
 export type ProcessAsIsElementCreate = {
   interview_id?: string;
   element_type: string;
@@ -360,7 +403,205 @@ export type LocalLLMProfile = {
   next_actions_es: string[];
 };
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+export type OrchestrationRun = {
+  id: string;
+  case_id: string;
+  status: string;
+  current_phase_number: number;
+  context_summary: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrchestrationPhase = {
+  id: string;
+  run_id: string;
+  phase_number: number;
+  phase_key: string;
+  title: string;
+  agent_role: string;
+  objective_es: string;
+  expected_outputs_es: string[];
+  quality_checks_es: string[];
+  status: string;
+  requires_human_checkpoint: boolean;
+  checkpoint_status: string;
+  checkpoint_reviewer: string | null;
+  checkpoint_comment: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  updated_at: string;
+};
+
+export type OrchestrationEvent = {
+  id: string;
+  run_id: string;
+  phase_number: number | null;
+  event_type: string;
+  actor: string;
+  message_es: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type OrchestrationState = {
+  run: OrchestrationRun;
+  phases: OrchestrationPhase[];
+  events: OrchestrationEvent[];
+  next_action_es: string;
+  blockers_es: string[];
+  autonomy_progress_percent: number;
+};
+
+export type CheckpointDecisionCreate = {
+  action: "approve" | "reject";
+  reviewer: string;
+  comment?: string;
+};
+
+export type OrchestrationContextCreate = {
+  actor?: string;
+  message_es: string;
+  payload?: Record<string, unknown>;
+};
+
+export type BpmnIssue = {
+  severity: string;
+  code: string;
+  message_es: string;
+  element_ref: string | null;
+};
+
+export type BpmnDraft = {
+  case_id: string;
+  source_element_count: number;
+  task_count: number;
+  gateway_count: number;
+  bpmn_xml: string;
+  issues: BpmnIssue[];
+  is_valid: boolean;
+  artifact_id: string | null;
+  artifact_version_id: string | null;
+};
+
+export type BpmnGenerateCreate = {
+  title?: string;
+  author?: string;
+  persist?: boolean;
+};
+
+export type AnalysisFinding = {
+  finding_type: string;
+  severity: string;
+  title_es: string;
+  detail_es: string;
+  evidence_es: string | null;
+  recommendation_es: string;
+  confidence_level: string;
+};
+
+export type AnalysisMetric = {
+  name_es: string;
+  value: number | null;
+  unit: string | null;
+  source_es: string;
+  interpretation_es: string;
+};
+
+export type RiskControl = {
+  risk_es: string;
+  control_es: string | null;
+  status: string;
+  recommendation_es: string;
+};
+
+export type ImprovementCandidate = {
+  title_es: string;
+  impact_es: string;
+  effort_es: string;
+  risk_es: string;
+  evidence_es: string | null;
+};
+
+export type ProcessAnalysis = {
+  case_id: string;
+  analysis_score: number;
+  findings: AnalysisFinding[];
+  metrics: AnalysisMetric[];
+  risks_controls: RiskControl[];
+  improvement_candidates: ImprovementCandidate[];
+  next_actions_es: string[];
+};
+
+export type ToBeAlternative = {
+  option_type: string;
+  title_es: string;
+  description_es: string;
+  expected_impact_es: string;
+  effort_es: string;
+  risk_es: string;
+  changes_es: string[];
+  required_validation_es: string[];
+};
+
+export type ProcessRedesign = {
+  case_id: string;
+  alternatives: ToBeAlternative[];
+  comparison: {
+    recommended_option_title_es: string;
+    rationale_es: string;
+    assumptions_es: string[];
+  };
+  next_actions_es: string[];
+};
+
+export type SimulationScenario = {
+  name_es: string;
+  cycle_time_hours: number;
+  manual_effort_hours: number;
+  cost_index: number;
+  sla_risk: string;
+  assumptions_es: string[];
+};
+
+export type ProcessSimulation = {
+  case_id: string;
+  scenarios: SimulationScenario[];
+  comparison: {
+    baseline_cycle_time_hours: number;
+    best_cycle_time_hours: number;
+    cycle_time_reduction_percent: number;
+    recommended_scenario_es: string;
+    interpretation_es: string;
+  };
+  sensitivity: Array<{
+    variable_es: string;
+    low_case_es: string;
+    base_case_es: string;
+    high_case_es: string;
+  }>;
+  next_actions_es: string[];
+};
+
+export type FinalDeliverable = {
+  case_id: string;
+  executive_summary_es: string;
+  technical_summary_es: string;
+  implementation_plan: Array<{
+    order: number;
+    title_es: string;
+    owner_es: string;
+    timeframe_es: string;
+    deliverable_es: string;
+  }>;
+  decision_points_es: string[];
+  residual_risks_es: string[];
+  artifact_id: string | null;
+  artifact_version_id: string | null;
+};
+
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8010").trim();
 
 export async function getHealth(): Promise<HealthResponse> {
   const response = await fetch(`${apiBaseUrl}/api/health`);
@@ -686,6 +927,90 @@ export async function getLocalLLMProfile(): Promise<LocalLLMProfile> {
   return response.json() as Promise<LocalLLMProfile>;
 }
 
+export async function getCaseOrchestration(caseId: string): Promise<OrchestrationState> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/orchestration`);
+
+  if (!response.ok) {
+    throw new Error(`Orchestration request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<OrchestrationState>;
+}
+
+export async function startCaseOrchestration(caseId: string): Promise<OrchestrationState> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/orchestration/start`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Orchestration start failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<OrchestrationState>;
+}
+
+export async function advanceOrchestration(caseId: string): Promise<OrchestrationState> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/orchestration/advance`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Orchestration advance failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<OrchestrationState>;
+}
+
+export async function decideOrchestrationCheckpoint(
+  caseId: string,
+  payload: CheckpointDecisionCreate,
+): Promise<OrchestrationState> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/orchestration/checkpoint`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Orchestration checkpoint failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<OrchestrationState>;
+}
+
+export async function rollbackOrchestration(caseId: string): Promise<OrchestrationState> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/orchestration/rollback`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Orchestration rollback failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<OrchestrationState>;
+}
+
+export async function addOrchestrationContext(
+  caseId: string,
+  payload: OrchestrationContextCreate,
+): Promise<OrchestrationState> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/orchestration/context`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Orchestration context failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<OrchestrationState>;
+}
+
 export async function listProcessStakeholders(caseId: string): Promise<ProcessStakeholder[]> {
   const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/discovery/stakeholders`);
 
@@ -754,6 +1079,16 @@ export async function getInterviewGuide(caseId: string): Promise<InterviewGuide>
   return response.json() as Promise<InterviewGuide>;
 }
 
+export async function getDiscoveryAssessment(caseId: string): Promise<DiscoveryAssessment> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/discovery/assessment`);
+
+  if (!response.ok) {
+    throw new Error(`Discovery assessment request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<DiscoveryAssessment>;
+}
+
 export async function listAsIsElements(caseId: string): Promise<ProcessAsIsElement[]> {
   const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/discovery/as-is-elements`);
 
@@ -799,4 +1134,150 @@ export async function extractAsIsElements(
   }
 
   return response.json() as Promise<ProcessAsIsElement[]>;
+}
+
+export async function previewAsIsBpmn(caseId: string): Promise<BpmnDraft> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/bpmn/as-is/preview`);
+
+  if (!response.ok) {
+    throw new Error(`BPMN preview request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<BpmnDraft>;
+}
+
+export async function generateAsIsBpmn(caseId: string, payload: BpmnGenerateCreate): Promise<BpmnDraft> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/bpmn/as-is/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`BPMN generation failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<BpmnDraft>;
+}
+
+export async function getProcessAnalysis(caseId: string): Promise<ProcessAnalysis> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/analysis`);
+
+  if (!response.ok) {
+    throw new Error(`Process analysis request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<ProcessAnalysis>;
+}
+
+export async function createProcessAnalysisReport(caseId: string): Promise<ProcessAnalysis> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/analysis/report`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: "Analisis as-is generado por agente",
+      author: "Agente Analista",
+      persist: true,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Process analysis report failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<ProcessAnalysis>;
+}
+
+export async function getProcessRedesign(caseId: string): Promise<ProcessRedesign> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/redesign/to-be-options`);
+
+  if (!response.ok) {
+    throw new Error(`Process redesign request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<ProcessRedesign>;
+}
+
+export async function createProcessRedesignReport(caseId: string): Promise<ProcessRedesign> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/redesign/report`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: "Propuesta to-be generada por agente",
+      author: "Agente Redisenador",
+      persist: true,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Process redesign report failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<ProcessRedesign>;
+}
+
+export async function getProcessSimulation(caseId: string): Promise<ProcessSimulation> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/simulation/scenarios`);
+
+  if (!response.ok) {
+    throw new Error(`Process simulation request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<ProcessSimulation>;
+}
+
+export async function createProcessSimulationReport(caseId: string): Promise<ProcessSimulation> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/simulation/report`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: "Simulacion inicial generada por agente",
+      author: "Agente Simulador",
+      persist: true,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Process simulation report failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<ProcessSimulation>;
+}
+
+export async function getFinalDeliverable(caseId: string): Promise<FinalDeliverable> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/deliverables/final-report`);
+
+  if (!response.ok) {
+    throw new Error(`Final deliverable request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<FinalDeliverable>;
+}
+
+export async function createFinalDeliverable(caseId: string): Promise<FinalDeliverable> {
+  const response = await fetch(`${apiBaseUrl}/api/process-cases/${caseId}/deliverables/final-report`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: "Informe final generado por agente",
+      author: "Agente Redactor",
+      persist: true,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Final deliverable creation failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<FinalDeliverable>;
 }

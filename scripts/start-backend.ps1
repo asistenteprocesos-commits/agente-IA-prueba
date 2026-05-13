@@ -2,10 +2,11 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $VenvPython = Join-Path $Root ".venv\Scripts\python.exe"
+$Port = if ($env:BACKEND_PORT) { $env:BACKEND_PORT } else { "8010" }
 
 if (-not (Test-Path $VenvPython)) {
     python -m venv (Join-Path $Root ".venv")
 }
 
 & $VenvPython -m pip install -r (Join-Path $Root "backend\requirements.txt")
-& $VenvPython -m uvicorn app.main:app --reload --app-dir (Join-Path $Root "backend") --host 127.0.0.1 --port 8000
+& $VenvPython -m uvicorn app.main:app --reload --app-dir (Join-Path $Root "backend") --host 127.0.0.1 --port $Port

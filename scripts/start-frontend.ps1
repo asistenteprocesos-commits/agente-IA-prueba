@@ -10,6 +10,10 @@ if ($LocalNode) {
     $env:Path = "$($LocalNode.FullName);$env:Path"
 }
 
+if (-not $env:VITE_API_BASE_URL) {
+    $env:VITE_API_BASE_URL = "http://127.0.0.1:8010"
+}
+
 Set-Location $Frontend
 npm.cmd install
 npm.cmd run dev

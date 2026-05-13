@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.discovery import (
+    DiscoveryAssessmentResponse,
     InterviewGuideResponse,
     ProcessAsIsElementCreate,
     ProcessAsIsElementResponse,
@@ -103,6 +104,20 @@ def get_process_interview_guide(
             detail="Process case not found",
         )
     return guide
+
+
+@router.get("/{case_id}/discovery/assessment", response_model=DiscoveryAssessmentResponse)
+def get_process_discovery_assessment(
+    case_id: UUID,
+    db: Session = Depends(get_db),
+) -> DiscoveryAssessmentResponse:
+    assessment = ProcessDiscoveryService(db).assess_discovery(case_id)
+    if assessment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Process case not found",
+        )
+    return assessment
 
 
 @router.get("/{case_id}/discovery/as-is-elements", response_model=list[ProcessAsIsElementResponse])

@@ -19,6 +19,7 @@ No modifica pesos de un LLM. Es una destilacion documental: prompts, playbooks, 
 
 ### Datasets y Configuración
 - `datasets/bpm_instruction_dataset.jsonl`: ejemplos de instrucción/respuesta para evaluación o futuro fine tuning.
+- `datasets/bpm_extended_examples.jsonl`: ejemplos avanzados sobre BPMN, process mining, trazabilidad, riesgos y supervisión.
 - `knowledge-distillation-manifest.json`: resumen de volumen y fuentes.
 
 ## Uso desde el software

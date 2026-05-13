@@ -11,6 +11,8 @@ if "%NODE_DIR%"=="" (
   exit /b 1
 )
 
+if "%VITE_API_BASE_URL%"=="" set "VITE_API_BASE_URL=http://127.0.0.1:8010"
+
 set "PATH=%NODE_DIR%;%PATH%"
 cd /d "%ROOT%\frontend"
 npm.cmd install

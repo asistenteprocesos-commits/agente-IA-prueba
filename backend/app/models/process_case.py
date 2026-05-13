@@ -45,3 +45,8 @@ class ProcessCaseModel(Base):
         back_populates="process_case",
         cascade="all, delete-orphan",
     )
+    orchestration_run: Mapped["OrchestrationRunModel"] = relationship(
+        back_populates="process_case",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )

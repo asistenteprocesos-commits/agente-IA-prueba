@@ -10,16 +10,13 @@ class LocalLLMService:
     def get_profile(self) -> LocalLLMProfileResponse:
         runtime_path = shutil.which("ollama")
         pulled_models = self._list_ollama_models() if runtime_path else []
-        pulled_model_names = {model.split(":")[0] for model in pulled_models}
 
         reasoning_installed = self._has_model(
             pulled_models=pulled_models,
-            pulled_model_names=pulled_model_names,
             configured_model=settings.ollama_reasoning_model,
         )
         embedding_installed = self._has_model(
             pulled_models=pulled_models,
-            pulled_model_names=pulled_model_names,
             configured_model=settings.ollama_embedding_model,
         )
 
@@ -60,7 +57,6 @@ class LocalLLMService:
                     required=False,
                     installed=self._has_model(
                         pulled_models=pulled_models,
-                        pulled_model_names=pulled_model_names,
                         configured_model=settings.ollama_reasoning_model_upgrade,
                     ),
                 ),
@@ -71,7 +67,6 @@ class LocalLLMService:
                     required=False,
                     installed=self._has_model(
                         pulled_models=pulled_models,
-                        pulled_model_names=pulled_model_names,
                         configured_model=settings.ollama_embedding_model_upgrade,
                     ),
                 ),
@@ -130,8 +125,10 @@ class LocalLLMService:
     @staticmethod
     def _has_model(
         pulled_models: list[str],
-        pulled_model_names: set[str],
         configured_model: str,
     ) -> bool:
-        configured_base = configured_model.split(":", maxsplit=1)[0]
-        return configured_model in pulled_models or configured_base in pulled_model_names
+        if ":" in configured_model:
+            return configured_model in pulled_models
+
+        pulled_model_names = {model.split(":", maxsplit=1)[0] for model in pulled_models}
+        return configured_model in pulled_model_names

@@ -140,6 +140,56 @@ def test_as_is_elements_can_be_extracted_and_created() -> None:
     assert case_response.json()["status"] == "as_is_drafting"
 
 
+def test_discovery_assessment_generates_questions_gaps_and_contradictions() -> None:
+    reset_db()
+    client = TestClient(create_app())
+    case_id = _create_case(client)
+
+    stakeholder_response = client.post(
+        f"/api/process-cases/{case_id}/discovery/stakeholders",
+        json={
+            "name": "Ana Responsable",
+            "role": "process_owner",
+            "area": "Compras",
+            "influence_level": "high",
+        },
+    )
+    assert stakeholder_response.status_code == 201
+    stakeholder_id = stakeholder_response.json()["id"]
+
+    interview_response = client.post(
+        f"/api/process-cases/{case_id}/discovery/interviews",
+        json={
+            "stakeholder_id": stakeholder_id,
+            "title": "Contraste de aprobaciones",
+            "interview_type": "discovery",
+            "notes": (
+                "El proceso inicia cuando llega la solicitud por correo. "
+                "Finanzas siempre aprueba las solicitudes. "
+                "Otro equipo indica que se aprueba solo si supera 5000. "
+                "El analista registra datos en SAP y Excel."
+            ),
+        },
+    )
+    assert interview_response.status_code == 201
+    interview_id = interview_response.json()["id"]
+
+    client.post(f"/api/process-cases/{case_id}/discovery/interviews/{interview_id}/extract-as-is")
+
+    assessment_response = client.get(f"/api/process-cases/{case_id}/discovery/assessment")
+
+    assert assessment_response.status_code == 200
+    assessment = assessment_response.json()
+    assert assessment["case_id"] == case_id
+    assert assessment["completeness_score"] > 0
+    assert assessment["readiness_level"] in {"blocked", "needs_validation", "insufficient", "ready_for_bpmn"}
+    assert len(assessment["dimensions"]) == 6
+    assert assessment["generated_questions"]
+    assert any(gap["code"] == "missing_metric" for gap in assessment["gaps"])
+    assert any(contradiction["topic"] == "Regla de aprobacion" for contradiction in assessment["contradictions"])
+    assert assessment["next_actions_es"]
+
+
 def test_discovery_unknown_case_returns_404() -> None:
     reset_db()
     client = TestClient(create_app())

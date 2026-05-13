@@ -51,7 +51,15 @@ agente ia prueba/
 
 ## Proxima fase recomendada
 
-La `Fase 0` queda documentada. La siguiente iteracion debe construir la `Etapa 1`:
+La `Fase 0` y la base de `Fase 1` ya quedaron documentadas. Segun el analisis v1.1, el proyecto debe retomar en la evolucion `v1.2`:
+
+1. busqueda vectorial con embeddings para consultar libros y evidencias con trazabilidad;
+2. validador BPMN automatico y base para generar modelos;
+3. feedback loop con rubrica de calidad;
+4. orquestador inicial de agentes con estados y checkpoints humanos;
+5. process mining inicial sobre event logs CSV.
+
+Los componentes grandes de la `Etapa 1` siguen siendo:
 
 1. `backend` con `FastAPI` y `LangGraph`.
 2. `frontend` web con tablero de casos y editor BPMN usando `bpmn-js`.
@@ -63,7 +71,13 @@ La `Fase 0` queda documentada. La siguiente iteracion debe construir la `Etapa 1
 
 ## Ejecutar la base tecnica
 
-Backend:
+Arranque limpio recomendado:
+
+```powershell
+.\scripts\start-dev-clean.cmd
+```
+
+Backend individual:
 
 ```powershell
 .\scripts\start-backend.cmd
@@ -84,8 +98,8 @@ Si `.tools` no existe, instala Node.js portable para este proyecto:
 URLs locales:
 
 ```text
-Backend:  http://127.0.0.1:8000/api/health
-Docs API: http://127.0.0.1:8000/api/docs
+Backend:  http://127.0.0.1:8010/api/health
+Docs API: http://127.0.0.1:8010/api/docs
 Frontend: http://127.0.0.1:5173
 ```
 
@@ -103,6 +117,13 @@ Frontend: http://127.0.0.1:5173
 - [Fase 1 - Parte 8 - Extraccion as-is](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-1-parte-8-extraccion-as-is.md>)
 - [Fase 1 - Parte 9 - Aprendizaje documental](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-1-parte-9-aprendizaje-documental.md>)
 - [Fase 1 - Parte 10 - LLM local y machine learning](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-1-parte-10-llm-local-machine-learning.md>)
+- [Fase 1.B - Orquestacion](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-1b-orquestacion.md>)
+- [Fase 2.1 - Agente Levantador](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-2-1-agente-levantador.md>)
+- [Fase 2.2 - Agente Modelador BPMN](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-2-2-agente-modelador-bpmn.md>)
+- [Fase 2.3 - Agente Analista](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-2-3-agente-analista.md>)
+- [Fase 2.4 - Agente Redisenador](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-2-4-agente-redisenador.md>)
+- [Fase 2.5 - Agente Simulador](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-2-5-agente-simulador.md>)
+- [Fase 2.6 - Agente Redactor](</c:/Users/Espana/Documents/agente IA prueba/docs/fase-2-6-agente-redactor.md>)
 
 ## Memoria documental del agente
 
@@ -111,7 +132,7 @@ Ya existe una primera memoria documental construida con los libros entregados. E
 Endpoint:
 
 ```text
-GET http://127.0.0.1:8000/api/knowledge/agent-training-profile
+GET http://127.0.0.1:8010/api/knowledge/agent-training-profile
 ```
 
 Vault visual:
@@ -134,7 +155,7 @@ Tambien se puede usar `deepseek-r1:7b` para analisis mas profundo, pero en esta 
 Endpoint:
 
 ```text
-GET http://127.0.0.1:8000/api/local-llm/profile
+GET http://127.0.0.1:8010/api/local-llm/profile
 ```
 
 Scripts:

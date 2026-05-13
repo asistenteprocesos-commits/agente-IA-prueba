@@ -44,8 +44,8 @@ Frontend:
 ## URLs
 
 ```text
-Backend:  http://127.0.0.1:8000/api/health
-Docs API: http://127.0.0.1:8000/api/docs
+Backend:  http://127.0.0.1:8010/api/health
+Docs API: http://127.0.0.1:8010/api/docs
 Frontend: http://127.0.0.1:5173
 ```
 

@@ -13,6 +13,11 @@ from app.models.process_case import ProcessCaseModel
 from app.schemas.discovery import (
     AsIsElementType,
     ConfidenceLevel,
+    DiscoveryAssessmentResponse,
+    DiscoveryCompletenessDimensionResponse,
+    DiscoveryContradictionResponse,
+    DiscoveryGapResponse,
+    DiscoveryQuestionResponse,
     InterviewGuideResponse,
     InterviewGuideSection,
     InterviewStatus,
@@ -167,6 +172,35 @@ class ProcessDiscoveryService:
             ],
         )
 
+    def assess_discovery(self, case_id: UUID) -> DiscoveryAssessmentResponse | None:
+        process_case = self._get_case(case_id)
+        if process_case is None:
+            return None
+
+        stakeholders = self._stakeholder_models(case_id)
+        interviews = self._interview_models(case_id)
+        elements = self._as_is_element_models(case_id)
+
+        dimensions = self._build_completeness_dimensions(stakeholders, interviews, elements)
+        total_score = sum(dimension.score for dimension in dimensions)
+        total_max = sum(dimension.max_score for dimension in dimensions) or 1
+        completeness_score = round((total_score / total_max) * 100)
+        gaps = self._detect_gaps(stakeholders, interviews, elements)
+        contradictions = self._detect_contradictions(interviews, elements)
+        generated_questions = self._generate_role_questions(process_case, stakeholders, interviews, elements, gaps)
+        next_actions = self._build_next_actions(completeness_score, gaps, contradictions, generated_questions)
+
+        return DiscoveryAssessmentResponse(
+            case_id=UUID(process_case.id),
+            readiness_level=self._readiness_level(completeness_score, gaps, contradictions),
+            completeness_score=completeness_score,
+            dimensions=dimensions,
+            generated_questions=generated_questions,
+            gaps=gaps,
+            contradictions=contradictions,
+            next_actions_es=next_actions,
+        )
+
     def list_as_is_elements(self, case_id: UUID) -> list[ProcessAsIsElementResponse] | None:
         if self._get_case(case_id) is None:
             return None
@@ -179,6 +213,412 @@ class ProcessDiscoveryService:
         )
         elements = self.db.scalars(statement).all()
         return [self._as_is_element_to_response(element) for element in elements]
+
+    def _stakeholder_models(self, case_id: UUID) -> list[ProcessStakeholderModel]:
+        statement = (
+            select(ProcessStakeholderModel)
+            .where(ProcessStakeholderModel.case_id == str(case_id))
+            .order_by(ProcessStakeholderModel.created_at.desc())
+        )
+        return list(self.db.scalars(statement).all())
+
+    def _interview_models(self, case_id: UUID) -> list[ProcessInterviewModel]:
+        statement = (
+            select(ProcessInterviewModel)
+            .where(ProcessInterviewModel.case_id == str(case_id))
+            .options(selectinload(ProcessInterviewModel.stakeholder))
+            .order_by(ProcessInterviewModel.created_at.desc())
+        )
+        return list(self.db.scalars(statement).all())
+
+    def _as_is_element_models(self, case_id: UUID) -> list[ProcessAsIsElementModel]:
+        statement = (
+            select(ProcessAsIsElementModel)
+            .where(ProcessAsIsElementModel.case_id == str(case_id))
+            .options(selectinload(ProcessAsIsElementModel.interview))
+            .order_by(ProcessAsIsElementModel.created_at.desc())
+        )
+        return list(self.db.scalars(statement).all())
+
+    @classmethod
+    def _build_completeness_dimensions(
+        cls,
+        stakeholders: list[ProcessStakeholderModel],
+        interviews: list[ProcessInterviewModel],
+        elements: list[ProcessAsIsElementModel],
+    ) -> list[DiscoveryCompletenessDimensionResponse]:
+        element_types = {element.element_type for element in elements}
+        stakeholder_roles = {stakeholder.role for stakeholder in stakeholders}
+        text_sources = [interview for interview in interviews if cls._interview_text(interview).strip()]
+        high_confidence = [element for element in elements if element.confidence_level == ConfidenceLevel.high.value]
+
+        raw_dimensions = [
+            (
+                "stakeholders",
+                "Stakeholders y responsables",
+                min(20, len(stakeholders) * 5 + (8 if StakeholderRole.process_owner.value in stakeholder_roles else 0)),
+                20,
+                "Debe existir al menos un dueno del proceso y participantes clave.",
+            ),
+            (
+                "interviews",
+                "Entrevistas y fuentes",
+                min(20, len(text_sources) * 7 + (5 if len(text_sources) >= 2 else 0)),
+                20,
+                "Debe haber notas, resumen o preguntas respondidas por los actores.",
+            ),
+            (
+                "flow_elements",
+                "Flujo, eventos y actividades",
+                cls._coverage_score(element_types, [AsIsElementType.event, AsIsElementType.activity], 20),
+                20,
+                "Debe existir inicio, fin o disparador y actividades principales.",
+            ),
+            (
+                "rules_systems_data",
+                "Reglas, sistemas y datos",
+                cls._coverage_score(
+                    element_types,
+                    [AsIsElementType.business_rule, AsIsElementType.system, AsIsElementType.input_output],
+                    20,
+                ),
+                20,
+                "Debe cubrir reglas de negocio, sistemas y entradas/salidas.",
+            ),
+            (
+                "exceptions_metrics_controls",
+                "Excepciones, metricas y controles",
+                cls._coverage_score(
+                    element_types,
+                    [AsIsElementType.exception, AsIsElementType.metric, AsIsElementType.control],
+                    20,
+                ),
+                20,
+                "Debe cubrir excepciones, indicadores y controles para analizar mejora.",
+            ),
+            (
+                "evidence_confidence",
+                "Trazabilidad y confianza",
+                min(20, len(high_confidence) * 4 + len([element for element in elements if element.source_excerpt]) * 2),
+                20,
+                "Los elementos criticos deben tener extracto fuente y confianza alta o media.",
+            ),
+        ]
+
+        dimensions: list[DiscoveryCompletenessDimensionResponse] = []
+        for code, label, score, max_score, detail in raw_dimensions:
+            status = "ok" if score >= int(max_score * 0.75) else "partial" if score > 0 else "missing"
+            dimensions.append(
+                DiscoveryCompletenessDimensionResponse(
+                    code=code,
+                    label_es=label,
+                    score=score,
+                    max_score=max_score,
+                    status=status,
+                    detail_es=detail,
+                )
+            )
+        return dimensions
+
+    @staticmethod
+    def _coverage_score(element_types: set[str], required: list[AsIsElementType], max_score: int) -> int:
+        if not required:
+            return 0
+        covered = sum(1 for element_type in required if element_type.value in element_types)
+        return round((covered / len(required)) * max_score)
+
+    @classmethod
+    def _detect_gaps(
+        cls,
+        stakeholders: list[ProcessStakeholderModel],
+        interviews: list[ProcessInterviewModel],
+        elements: list[ProcessAsIsElementModel],
+    ) -> list[DiscoveryGapResponse]:
+        gaps: list[DiscoveryGapResponse] = []
+        roles = {stakeholder.role for stakeholder in stakeholders}
+        element_types = {element.element_type for element in elements}
+        text_sources = [interview for interview in interviews if cls._interview_text(interview).strip()]
+
+        if StakeholderRole.process_owner.value not in roles:
+            gaps.append(
+                cls._gap(
+                    "missing_process_owner",
+                    "high",
+                    "Falta dueno del proceso",
+                    "No hay stakeholder marcado como process_owner.",
+                    "Registrar o confirmar el dueno del proceso antes de aprobar el as-is.",
+                )
+            )
+        if not text_sources:
+            gaps.append(
+                cls._gap(
+                    "missing_interview_notes",
+                    "high",
+                    "Faltan notas de levantamiento",
+                    "Las entrevistas no contienen notas, resumen u objetivo suficiente para extraer evidencia.",
+                    "Realizar entrevista de descubrimiento y cargar notas textuales.",
+                )
+            )
+        for element_type, title, recommendation in [
+            (AsIsElementType.event.value, "Faltan eventos de inicio/fin", "Preguntar como inicia, termina y se dispara el proceso."),
+            (AsIsElementType.activity.value, "Faltan actividades principales", "Levantar la secuencia de actividades con responsables."),
+            (AsIsElementType.business_rule.value, "Faltan reglas de negocio", "Documentar condiciones, umbrales y criterios de decision."),
+            (AsIsElementType.system.value, "Faltan sistemas", "Identificar aplicaciones, archivos, correos o integraciones usadas."),
+            (AsIsElementType.exception.value, "Faltan excepciones", "Preguntar por rechazos, devoluciones, errores y retrabajos frecuentes."),
+            (AsIsElementType.metric.value, "Faltan metricas", "Solicitar volumen, tiempos, SLA, colas, costo o capacidad."),
+            (AsIsElementType.control.value, "Faltan controles", "Identificar aprobaciones, validaciones y controles de riesgo."),
+        ]:
+            if element_type not in element_types:
+                gaps.append(
+                    cls._gap(
+                        f"missing_{element_type}",
+                        "medium",
+                        title,
+                        f"No hay elementos as-is de tipo {element_type}.",
+                        recommendation,
+                    )
+                )
+
+        return gaps
+
+    @classmethod
+    def _detect_contradictions(
+        cls,
+        interviews: list[ProcessInterviewModel],
+        elements: list[ProcessAsIsElementModel],
+    ) -> list[DiscoveryContradictionResponse]:
+        text_units = [
+            cls._interview_text(interview)
+            for interview in interviews
+            if cls._interview_text(interview).strip()
+        ] + [
+            " ".join(value for value in [element.name, element.description, element.source_excerpt] if value)
+            for element in elements
+        ]
+        lowered_units = [unit.lower() for unit in text_units]
+        contradictions: list[DiscoveryContradictionResponse] = []
+
+        contradiction_rules = [
+            (
+                "Regla de aprobacion",
+                ("siempre", "aprueb"),
+                ("solo si", "aprueb"),
+                "Hay evidencia de aprobacion siempre y tambien condicionada.",
+            ),
+            (
+                "Responsabilidad del proceso",
+                ("responsable",),
+                ("no hay responsable",),
+                "Hay afirmaciones incompatibles sobre responsabilidad.",
+            ),
+            (
+                "Automatizacion vs manualidad",
+                ("automatic",),
+                ("manual",),
+                "Hay versiones distintas sobre si la actividad es automatica o manual.",
+            ),
+            (
+                "Uso de sistema",
+                ("sap",),
+                ("excel",),
+                "Hay sistemas distintos mencionados para el mismo proceso; validar si son pasos diferentes o fuentes alternativas.",
+            ),
+        ]
+
+        for topic, left_terms, right_terms, recommendation in contradiction_rules:
+            left = [unit for unit, lowered in zip(text_units, lowered_units, strict=False) if all(term in lowered for term in left_terms)]
+            right = [unit for unit, lowered in zip(text_units, lowered_units, strict=False) if all(term in lowered for term in right_terms)]
+            if left and right:
+                contradictions.append(
+                    DiscoveryContradictionResponse(
+                        topic=topic,
+                        severity="medium",
+                        evidence_es=[
+                            cls._shorten(left[0]),
+                            cls._shorten(right[0]),
+                        ],
+                        recommendation_es=recommendation,
+                    )
+                )
+
+        return contradictions
+
+    @classmethod
+    def _generate_role_questions(
+        cls,
+        process_case: ProcessCaseModel,
+        stakeholders: list[ProcessStakeholderModel],
+        interviews: list[ProcessInterviewModel],
+        elements: list[ProcessAsIsElementModel],
+        gaps: list[DiscoveryGapResponse],
+    ) -> list[DiscoveryQuestionResponse]:
+        roles = {stakeholder.role for stakeholder in stakeholders}
+        element_types = {element.element_type for element in elements}
+        gap_codes = {gap.code for gap in gaps}
+        process_name = process_case.name
+        questions: list[DiscoveryQuestionResponse] = []
+
+        if StakeholderRole.process_owner.value in roles or "missing_process_owner" in gap_codes:
+            questions.extend(
+                [
+                    cls._question(
+                        StakeholderRole.process_owner,
+                        "high",
+                        f"Confirma el inicio, fin y alcance exacto del proceso {process_name}.",
+                        "El modelo as-is no puede aprobarse sin frontera clara.",
+                        "Definicion de alcance validada por el dueno del proceso.",
+                    ),
+                    cls._question(
+                        StakeholderRole.process_owner,
+                        "high",
+                        "Que decisiones requieren aprobacion humana obligatoria y cuales podrian automatizarse por regla?",
+                        "El to-be no debe eliminar controles criticos sin validacion.",
+                        "Politica, matriz de aprobacion o regla escrita.",
+                    ),
+                ]
+            )
+
+        if AsIsElementType.exception.value not in element_types:
+            questions.append(
+                cls._question(
+                    StakeholderRole.subject_matter_expert,
+                    "high",
+                    "Cuales son las excepciones, rechazos, devoluciones o retrabajos mas frecuentes?",
+                    "El happy path no alcanza para modelar BPMN profesional.",
+                    "Lista de excepciones con frecuencia aproximada y responsable.",
+                )
+            )
+
+        if AsIsElementType.metric.value not in element_types:
+            questions.append(
+                cls._question(
+                    StakeholderRole.participant,
+                    "medium",
+                    "Cuanto tarda cada actividad y donde se acumulan esperas o colas?",
+                    "El analisis cuantitativo requiere tiempos, volumenes y SLA.",
+                    "Tiempos por actividad, volumen mensual y SLA actual.",
+                )
+            )
+
+        if AsIsElementType.system.value not in element_types:
+            questions.append(
+                cls._question(
+                    StakeholderRole.system_owner,
+                    "medium",
+                    "Que sistemas, archivos, correos o integraciones soportan cada paso del proceso?",
+                    "El redisenio digital depende de conocer sistemas y datos.",
+                    "Mapa de sistemas por actividad e integraciones existentes.",
+                )
+            )
+
+        if AsIsElementType.control.value not in element_types:
+            questions.append(
+                cls._question(
+                    StakeholderRole.risk_control,
+                    "high",
+                    "Que controles previenen fraude, error, incumplimiento o riesgo operativo?",
+                    "Las mejoras no deben debilitar el control interno.",
+                    "Matriz de controles, riesgos cubiertos y evidencia de ejecucion.",
+                )
+            )
+
+        if len(interviews) < 2:
+            questions.append(
+                cls._question(
+                    StakeholderRole.approver,
+                    "medium",
+                    "Que criterios usa para aprobar, rechazar o pedir correcciones?",
+                    "Se necesita validar si las reglas declaradas coinciden con la practica.",
+                    "Criterios de decision, umbrales y ejemplos de casos rechazados.",
+                )
+            )
+
+        return questions[:10]
+
+    @classmethod
+    def _build_next_actions(
+        cls,
+        completeness_score: int,
+        gaps: list[DiscoveryGapResponse],
+        contradictions: list[DiscoveryContradictionResponse],
+        questions: list[DiscoveryQuestionResponse],
+    ) -> list[str]:
+        actions: list[str] = []
+        if contradictions:
+            actions.append("Resolver contradicciones antes de aprobar la narrativa as-is.")
+        high_gaps = [gap for gap in gaps if gap.severity == "high"]
+        if high_gaps:
+            actions.append(f"Cerrar {len(high_gaps)} vacio(s) critico(s) del levantamiento.")
+        if questions:
+            actions.append("Agendar la siguiente entrevista usando las preguntas priorizadas del agente levantador.")
+        if completeness_score < 60:
+            actions.append("Mantener el caso en levantamiento; todavia no esta listo para modelado BPMN.")
+        elif completeness_score < 80:
+            actions.append("Preparar validacion humana del as-is y completar brechas medianas.")
+        else:
+            actions.append("El as-is esta cerca de estar listo para modelado BPMN con supervision humana.")
+        return actions
+
+    @staticmethod
+    def _readiness_level(
+        completeness_score: int,
+        gaps: list[DiscoveryGapResponse],
+        contradictions: list[DiscoveryContradictionResponse],
+    ) -> str:
+        if contradictions or any(gap.severity == "high" for gap in gaps):
+            return "blocked"
+        if completeness_score >= 80:
+            return "ready_for_bpmn"
+        if completeness_score >= 60:
+            return "needs_validation"
+        return "insufficient"
+
+    @staticmethod
+    def _gap(
+        code: str,
+        severity: str,
+        title: str,
+        detail: str,
+        recommendation: str,
+    ) -> DiscoveryGapResponse:
+        return DiscoveryGapResponse(
+            code=code,
+            severity=severity,
+            title_es=title,
+            detail_es=detail,
+            recommendation_es=recommendation,
+        )
+
+    @staticmethod
+    def _question(
+        role: StakeholderRole,
+        priority: str,
+        question: str,
+        reason: str,
+        expected_evidence: str,
+    ) -> DiscoveryQuestionResponse:
+        return DiscoveryQuestionResponse(
+            role=role,
+            priority=priority,
+            question_es=question,
+            reason_es=reason,
+            expected_evidence_es=expected_evidence,
+        )
+
+    @staticmethod
+    def _interview_text(interview: ProcessInterviewModel) -> str:
+        return "\n".join(
+            value
+            for value in [interview.objective, interview.questions, interview.notes, interview.summary]
+            if value
+        )
+
+    @staticmethod
+    def _shorten(text: str, max_length: int = 260) -> str:
+        cleaned = re.sub(r"\s+", " ", text).strip()
+        if len(cleaned) <= max_length:
+            return cleaned
+        return f"{cleaned[: max_length - 3].rstrip()}..."
 
     def create_as_is_element(
         self,

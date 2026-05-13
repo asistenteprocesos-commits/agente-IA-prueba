@@ -162,6 +162,7 @@ def test_agent_training_profile_exposes_documentary_distillation_pack() -> None:
     assert profile["training_mode"] == "documentary_distillation_not_weight_training"
     assert profile["language"] == "es"
     assert profile["methodology_phases"] == 8
-    assert profile["dataset_examples"] >= 0
+    assert profile["dataset_examples"] >= 100
+    assert any(artifact["name"] == "Dataset JSONL extendido" for artifact in profile["artifacts"])
     assert any(artifact["kind"] == "prompt" for artifact in profile["artifacts"])
     assert "embeddings" in profile["next_step"]
