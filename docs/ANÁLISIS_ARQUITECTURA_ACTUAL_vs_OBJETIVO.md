@@ -167,6 +167,7 @@ Pendiente:
 ✅ Agente de Conocimiento .............. PARCIAL
    └─ Existe RAG básico, falta: embeddings, Qdrant, búsqueda avanzada
 
+
 ⚠️ Agente Levantador .................. PARCIAL
    ├─ Existe: preguntas inteligentes por rol
    ├─ Existe: score de completitud del as-is
