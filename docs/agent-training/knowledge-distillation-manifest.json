@@ -1,0 +1,30 @@
+{
+  "mode": "documentary_distillation_not_weight_training",
+  "books": [
+    {
+      "source_name": "Traducir pdf.pdf",
+      "identified_title": "Fundamentals of Business Process Management, Second Edition",
+      "pages": 546,
+      "size_mb": 17.47,
+      "text_chars": 1393021,
+      "outline_items": 220
+    },
+    {
+      "source_name": "Handbook on Business Process Management 1_ Introduction, Methods, and Information Systems (PDFDrive).pdf",
+      "identified_title": "Handbook on Business Process Management 1: Introduction, Methods, and Information Systems",
+      "pages": 733,
+      "size_mb": 18.57,
+      "text_chars": 1863093,
+      "outline_items": 220
+    }
+  ],
+  "insights": 5614,
+  "methodology_phases": 8,
+  "obsidian_vault": "storage/obsidian-bpm-vault",
+  "training_pack": "docs/agent-training",
+  "limitations": [
+    "No modifica pesos internos de GPT ni de un LLM local.",
+    "No reproduce libros completos en Markdown.",
+    "Requiere RAG/embeddings para consulta semantica avanzada."
+  ]
+}
