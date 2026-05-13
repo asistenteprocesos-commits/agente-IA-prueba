@@ -6,11 +6,19 @@ No modifica pesos de un LLM. Es una destilacion documental: prompts, playbooks, 
 
 ## Archivos
 
-- `prompt-maestro-agente-bpm.md`: instrucciones base del agente.
-- `playbook-operativo-bpm.md`: metodologia de gestion de casos.
+### Documentación Principal
+- `prompt-maestro-agente-bpm.md`: instrucciones base del agente con 8 fases metodologicas.
+- `playbook-operativo-bpm.md`: metodologia de gestion de casos (detallado por fase).
 - `rubrica-calidad-bpm.md`: criterios de revision de respuestas y entregables.
-- `glosario-operativo.md`: vocabulario minimo del agente.
-- `datasets/bpm_instruction_dataset.jsonl`: ejemplos de instruccion/respuesta para evaluacion o futuro fine tuning.
+
+### Referencia Técnica (Nuevos)
+- `glosario-operativo.md`: 150+ términos especializados en BPM, BPMN, process mining, análisis cuantitativo, riesgos, transformación digital e industrias específicas.
+- `patrones-bpmn.md`: 10 patrones BPMN con ejemplos prácticos, comparaciones correcto/incorrecto y checklist de validación.
+- `casos-bpmn-completos.md`: 10 casos reales (solicitud de compra, reclamos, onboarding, etc) con narrativa as-is/to-be, diagramas, métricas e impacto.
+- `antipatrones-errores-comunes.md`: 10+ antipatrones identificables durante levantamiento con causa/remedio.
+
+### Datasets y Configuración
+- `datasets/bpm_instruction_dataset.jsonl`: ejemplos de instrucción/respuesta para evaluación o futuro fine tuning.
 - `knowledge-distillation-manifest.json`: resumen de volumen y fuentes.
 
 ## Uso desde el software
