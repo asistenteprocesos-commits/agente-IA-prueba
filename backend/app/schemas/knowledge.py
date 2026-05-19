@@ -51,6 +51,7 @@ class KnowledgeDocumentResponse(BaseModel):
     case_id: UUID | None
     filename: str
     mime_type: str | None
+    doc_category: str
     status: KnowledgeDocumentStatus
     error_message: str | None
     text_char_count: int

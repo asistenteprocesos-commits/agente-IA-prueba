@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     bpmn,
+    chat,
     health,
     knowledge,
     local_llm,
@@ -19,6 +20,7 @@ api_router = APIRouter()
 api_router.include_router(health.router, prefix="/health", tags=["health"])
 api_router.include_router(knowledge.router, prefix="/knowledge", tags=["knowledge"])
 api_router.include_router(local_llm.router, prefix="/local-llm", tags=["local llm"])
+api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(
     orchestration.router,
     prefix="/process-cases",

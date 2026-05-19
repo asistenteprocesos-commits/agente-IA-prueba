@@ -1,18 +1,22 @@
 import {
   Activity,
+  Bot,
   CheckCircle2,
   ClipboardList,
   Database,
   FileText,
   GitBranch,
+  MessageSquare,
   Play,
   Plus,
   RotateCcw,
+  Send,
   ShieldCheck,
   StepForward,
   Upload,
   Users,
   Workflow,
+  Zap,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -64,12 +68,20 @@ import {
   rollbackOrchestration,
   startCaseOrchestration,
   uploadKnowledgeDocumentsBulk,
+  // Chat
+  createChatSession,
+  listChatSessions,
+  listChatMessages,
+  sendChatMessage,
+  getLLMSystemStatus,
   type AgentTrainingProfile,
   type ArtifactEvidence,
   type ArtifactQuality,
   type ArtifactVersionHistory,
   type BpmnDraft,
   type CaseMethodology,
+  type ChatSession,
+  type ChatMessage,
   type DiscoveryAssessment,
   type FinalDeliverable,
   type HealthResponse,
@@ -78,6 +90,7 @@ import {
   type KnowledgeDocument,
   type KnowledgeInsight,
   type KnowledgeLearningRun,
+  type LLMSystemStatus,
   type LocalLLMProfile,
   type OrchestrationState,
   type ProcessAsIsElement,
@@ -182,6 +195,15 @@ export function App() {
   const [isOrchestrating, setIsOrchestrating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isTracing, setIsTracing] = useState(false);
+
+  // ── Chat state ───────────────────────────────────────────────────────────
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [activeChatSessionId, setActiveChatSessionId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isSendingChat, setIsSendingChat] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [llmStatus, setLlmStatus] = useState<LLMSystemStatus | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -1109,6 +1131,83 @@ export function App() {
     }
   }
 
+  // ── Chat Handlers ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let active = true;
+    listChatSessions().then((data) => {
+      if (active) setChatSessions(data);
+    }).catch(console.error);
+
+    getLLMSystemStatus().then((data) => {
+      if (active) setLlmStatus(data);
+    }).catch(console.error);
+
+    return () => { active = false; };
+  }, []);
+
+  async function handleNewChatSession() {
+    try {
+      const session = await createChatSession({ case_id: selectedCaseId || undefined });
+      setChatSessions(prev => [session, ...prev]);
+      setActiveChatSessionId(session.id);
+      setChatMessages([]);
+      setChatError(null);
+    } catch (err) {
+      setChatError("No se pudo crear la sesión de chat.");
+    }
+  }
+
+  async function handleSelectChatSession(sessionId: string) {
+    setActiveChatSessionId(sessionId);
+    setChatError(null);
+    try {
+      const messages = await listChatMessages(sessionId);
+      setChatMessages(messages);
+    } catch (err) {
+      setChatError("No se pudieron cargar los mensajes.");
+    }
+  }
+
+  async function handleSendChat(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!chatInput.trim() || !activeChatSessionId) return;
+
+    const inputMsg = chatInput;
+    setChatInput("");
+    setIsSendingChat(true);
+    setChatError(null);
+
+    // Optimistic user message
+    const tempId = `temp-${Date.now()}`;
+    setChatMessages(prev => [...prev, {
+      id: tempId,
+      session_id: activeChatSessionId,
+      role: "user",
+      content: inputMsg,
+      llm_provider: null,
+      llm_model: null,
+      rag_fragments_used: null,
+      normalized_terms: null,
+      agent_task: null,
+      created_at: new Date().toISOString()
+    }]);
+
+    try {
+      await sendChatMessage(activeChatSessionId, { content: inputMsg });
+      // Reload messages to get the real user message and assistant reply
+      const messages = await listChatMessages(activeChatSessionId);
+      setChatMessages(messages);
+    } catch (err) {
+      setChatError("Error al enviar el mensaje. Inténtalo de nuevo.");
+      setChatInput(inputMsg); // Restore input
+      // Remove temp message
+      setChatMessages(prev => prev.filter(m => m.id !== tempId));
+    } finally {
+      setIsSendingChat(false);
+    }
+  }
+
   const selectedCase = cases.find((processCase) => processCase.id === selectedCaseId) ?? null;
   const selectedArtifact = artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? null;
   const selectedKnowledgeDocument =
@@ -1140,6 +1239,9 @@ export function App() {
           </a>
           <a className="nav-item" href="#bpmn">
             BPMN
+          </a>
+          <a className="nav-item" href="#chat-panel">
+            Agente Chat
           </a>
           <a className="nav-item" href="#analisis">
             Analisis
@@ -2756,6 +2858,167 @@ export function App() {
           })}
         </section>
       </section>
+
+      {/* ══════════════════════════════════════════════════════════════
+          PANEL CHAT — Agente BPMS
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="section" id="chat-panel" aria-labelledby="chat-heading">
+        <header className="section-header">
+          <div className="header-badge">
+            <MessageSquare size={18} aria-hidden="true" />
+            <span>Agente BPMS</span>
+          </div>
+          <h2 id="chat-heading">Chat con el Agente Experto</h2>
+          <p className="section-desc">
+            Consulta al agente sobre BPM, AS-IS, TO-BE, BPMN, metodologías y más.
+            Las respuestas usan RAG sobre tu base de conocimiento.
+          </p>
+        </header>
+
+        {/* LLM Status bar */}
+        {llmStatus && (
+          <div className="llm-status-bar">
+            <span className="llm-badge">
+              <Zap size={13} />
+              Proveedor activo: <strong>{llmStatus.active_provider}</strong>
+            </span>
+            <span className={`llm-badge ${llmStatus.ollama_available ? "ok" : "warn"}`}>
+              Ollama: {llmStatus.ollama_available ? "✓ disponible" : "✗ no disponible (normal en esta PC)"}
+            </span>
+            {llmStatus.providers.map((p) => (
+              <span key={p.provider} className={`llm-chip ${p.available ? "ok" : "off"}`}>
+                {p.provider.split(" ")[0]}: {p.available ? "✓" : "✗"}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="chat-layout">
+          {/* Sidebar: sesiones */}
+          <aside className="chat-sidebar">
+            <div className="chat-sidebar-header">
+              <h3>Conversaciones</h3>
+              <button
+                id="new-chat-session-btn"
+                className="btn-icon"
+                onClick={() => handleNewChatSession()}
+                title="Nueva conversación"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            {chatSessions.length === 0 && (
+              <p className="chat-empty-hint">Sin conversaciones. Crea una nueva.</p>
+            )}
+            <ul className="chat-session-list">
+              {chatSessions.map((s) => (
+                <li
+                  key={s.id}
+                  className={`chat-session-item ${s.id === activeChatSessionId ? "active" : ""}`}
+                  onClick={() => handleSelectChatSession(s.id)}
+                >
+                  <MessageSquare size={14} />
+                  <span>{s.title}</span>
+                </li>
+              ))}
+            </ul>
+          </aside>
+
+          {/* Main chat area */}
+          <div className="chat-main">
+            {!activeChatSessionId ? (
+              <div className="chat-welcome">
+                <Bot size={48} className="chat-welcome-icon" />
+                <h3>Agente BPMS listo</h3>
+                <p>Crea una nueva conversación o selecciona una existente para comenzar.</p>
+                <button id="start-chat-btn" className="btn-primary" onClick={() => handleNewChatSession()}>
+                  <Plus size={16} /> Nueva conversación
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="chat-messages" id="chat-messages-container">
+                  {chatMessages.length === 0 && (
+                    <div className="chat-welcome-inline">
+                      <Bot size={32} />
+                      <p>¿En qué proceso puedo ayudarte hoy?</p>
+                    </div>
+                  )}
+                  {chatMessages.map((msg) => (
+                    <div key={msg.id} className={`chat-bubble ${msg.role}`}>
+                      <div className="chat-bubble-content">
+                        <pre className="chat-text">{msg.content}</pre>
+                      </div>
+                      {msg.role === "assistant" && (
+                        <div className="chat-meta">
+                          {msg.llm_provider && (
+                            <span className="chat-tag">
+                              <Zap size={11} /> {msg.llm_provider}
+                            </span>
+                          )}
+                          {msg.agent_task && (
+                            <span className="chat-tag">
+                              <Activity size={11} /> {msg.agent_task}
+                            </span>
+                          )}
+                          {msg.rag_fragments_used != null && msg.rag_fragments_used > 0 && (
+                            <span className="chat-tag">
+                              <Database size={11} /> {msg.rag_fragments_used} fuente(s) RAG
+                            </span>
+                          )}
+                          {msg.normalized_terms && (
+                            <span className="chat-tag">
+                              <CheckCircle2 size={11} /> {msg.normalized_terms}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {isSendingChat && (
+                    <div className="chat-bubble assistant thinking">
+                      <div className="chat-bubble-content">
+                        <span className="typing-dot" />
+                        <span className="typing-dot" />
+                        <span className="typing-dot" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {chatError && <p className="error-msg">{chatError}</p>}
+
+                <form className="chat-input-bar" onSubmit={handleSendChat}>
+                  <textarea
+                    id="chat-input-field"
+                    className="chat-textarea"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleSendChat(e as unknown as FormEvent<HTMLFormElement>);
+                      }
+                    }}
+                    placeholder="Escribe tu consulta BPM aquí... (Enter para enviar, Shift+Enter nueva línea)"
+                    rows={3}
+                    disabled={isSendingChat}
+                  />
+                  <button
+                    id="send-chat-btn"
+                    type="submit"
+                    className="btn-send"
+                    disabled={isSendingChat || !chatInput.trim()}
+                    title="Enviar mensaje"
+                  >
+                    <Send size={18} />
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
@@ -2772,3 +3035,4 @@ function updateVersionStatus(
     ),
   }));
 }
+

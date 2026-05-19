@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 from app.db.base import Base
-from app.models import discovery, knowledge, orchestration, process_case, process_repository  # noqa: F401
+from app.models import chat, discovery, document_management, knowledge, orchestration, process_case, process_repository  # noqa: F401
 
 
 def _connect_args(database_url: str) -> dict[str, bool]:

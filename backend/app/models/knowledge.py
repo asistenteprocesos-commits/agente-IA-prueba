@@ -19,6 +19,10 @@ class KnowledgeDocumentModel(Base):
     filename: Mapped[str] = mapped_column(String(260), nullable=False)
     mime_type: Mapped[str | None] = mapped_column(String(120))
     file_path: Mapped[str] = mapped_column(String(600), nullable=False)
+    
+    # Dual-RAG: methodology, company_specific, industry_standard
+    doc_category: Mapped[str] = mapped_column(String(60), default="methodology", nullable=False, index=True)
+    
     status: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     error_message: Mapped[str | None] = mapped_column(Text)
     text_char_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

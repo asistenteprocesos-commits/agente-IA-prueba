@@ -1281,3 +1281,129 @@ export async function createFinalDeliverable(caseId: string): Promise<FinalDeliv
 
   return response.json() as Promise<FinalDeliverable>;
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CHAT — Agente BPMS Conversacional
+// ══════════════════════════════════════════════════════════════════════════════
+
+export type ChatSession = {
+  id: string;
+  case_id: string | null;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChatMessage = {
+  id: string;
+  session_id: string;
+  role: "user" | "assistant";
+  content: string;
+  llm_provider: string | null;
+  llm_model: string | null;
+  rag_fragments_used: number | null;
+  normalized_terms: string | null;
+  agent_task: string | null;
+  created_at: string;
+};
+
+export type ChatSessionCreate = {
+  title?: string;
+  case_id?: string;
+};
+
+export type ChatMessageCreate = {
+  content: string;
+};
+
+export type RAGFragment = {
+  chunk_id: string;
+  document_id: string;
+  document_title: string;
+  author: string | null;
+  content: string;
+  score: number;
+  chunk_index: number;
+};
+
+export type RAGSearchResponse = {
+  query: string;
+  fragments: RAGFragment[];
+  total_found: number;
+};
+
+export type LLMProviderStatus = {
+  provider: string;
+  model: string;
+  available: boolean;
+  api_key_configured: boolean;
+  notes: string | null;
+};
+
+export type LLMSystemStatus = {
+  providers: LLMProviderStatus[];
+  active_provider: string;
+  ollama_available: boolean;
+  internet_available: boolean;
+};
+
+export async function listChatSessions(): Promise<ChatSession[]> {
+  const r = await fetch(`${apiBaseUrl}/api/chat/sessions`);
+  if (!r.ok) throw new Error(`listChatSessions failed: ${r.status}`);
+  return r.json() as Promise<ChatSession[]>;
+}
+
+export async function createChatSession(payload: ChatSessionCreate): Promise<ChatSession> {
+  const r = await fetch(`${apiBaseUrl}/api/chat/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`createChatSession failed: ${r.status}`);
+  return r.json() as Promise<ChatSession>;
+}
+
+export async function getChatSession(sessionId: string): Promise<ChatSession> {
+  const r = await fetch(`${apiBaseUrl}/api/chat/sessions/${sessionId}`);
+  if (!r.ok) throw new Error(`getChatSession failed: ${r.status}`);
+  return r.json() as Promise<ChatSession>;
+}
+
+export async function listChatMessages(sessionId: string): Promise<ChatMessage[]> {
+  const r = await fetch(`${apiBaseUrl}/api/chat/sessions/${sessionId}/messages`);
+  if (!r.ok) throw new Error(`listChatMessages failed: ${r.status}`);
+  return r.json() as Promise<ChatMessage[]>;
+}
+
+export async function sendChatMessage(
+  sessionId: string,
+  payload: ChatMessageCreate,
+): Promise<ChatMessage> {
+  const r = await fetch(`${apiBaseUrl}/api/chat/sessions/${sessionId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`sendChatMessage failed: ${r.status}`);
+  return r.json() as Promise<ChatMessage>;
+}
+
+export async function searchRAG(
+  query: string,
+  topK = 5,
+  caseId?: string,
+): Promise<RAGSearchResponse> {
+  const r = await fetch(`${apiBaseUrl}/api/chat/rag/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, top_k: topK, case_id: caseId ?? null }),
+  });
+  if (!r.ok) throw new Error(`searchRAG failed: ${r.status}`);
+  return r.json() as Promise<RAGSearchResponse>;
+}
+
+export async function getLLMSystemStatus(): Promise<LLMSystemStatus> {
+  const r = await fetch(`${apiBaseUrl}/api/chat/llm/status`);
+  if (!r.ok) throw new Error(`getLLMSystemStatus failed: ${r.status}`);
+  return r.json() as Promise<LLMSystemStatus>;
+}
